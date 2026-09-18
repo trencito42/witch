@@ -1,0 +1,16 @@
+[Unit]
+Description=Witch web
+After=network.target mysql.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/witch/htdocs/witch.pw
+EnvironmentFile=/home/witch/htdocs/witch.pw/.env
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=5
+User=witch
+Group=witch
+
+[Install]
+WantedBy=multi-user.target
