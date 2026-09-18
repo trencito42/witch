@@ -1,23 +1,45 @@
+import * as React from "react";
+import { cn } from "@/lib/cn";
+
 export function PageHeader({
   title,
   description,
   actions,
+  badge,
+  className,
 }: {
   title: string;
   description?: string;
   actions?: React.ReactNode;
+  badge?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] pb-5">
-      <div>
-        <h1 className="text-[22px] font-medium tracking-tight">{title}</h1>
+    <div
+      className={cn(
+        "mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-[var(--border)]",
+        className,
+      )}
+    >
+      <div className="space-y-1 max-w-2xl">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-[var(--text)]">
+            {title}
+          </h1>
+          {badge}
+        </div>
         {description ? (
-          <p className="mt-1.5 max-w-xl text-[13px] leading-relaxed text-[var(--text-muted)]">
+          <p className="text-[13px] sm:text-[14px] leading-relaxed text-[var(--text-muted)]">
             {description}
           </p>
         ) : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {actions}
+        </div>
+      ) : null}
     </div>
   );
 }
+

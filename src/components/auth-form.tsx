@@ -10,6 +10,8 @@ import {
   type AuthState,
 } from "@/app/auth-actions";
 import { Button, Input, Label } from "@/components/ui";
+import { LogoMark } from "@/components/logo";
+import { AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 
 const initial: AuthState = {};
 
@@ -31,84 +33,182 @@ export function AuthForm({
   const [state, formAction, pending] = useActionState(action, initial);
 
   return (
-    <div className="mx-auto w-full max-w-sm px-5 py-16">
-      <h1 className="mb-8 text-[22px] font-medium tracking-tight">
-        {mode === "login" && "Sign in"}
-        {mode === "signup" && "Create an account"}
-        {mode === "forgot" && "Reset password"}
-        {mode === "reset" && "Choose a new password"}
-      </h1>
-      <form action={formAction} autoComplete="on" className="space-y-4">
-        {mode === "reset" ? <input type="hidden" name="token" value={resetToken ?? ""} /> : null}
-        {mode === "signup" && (
-          <div>
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" name="name" required autoComplete="name" />
+    <div className="relative min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-12 sm:py-16 overflow-hidden">
+      {/* Background subtle radial illumination */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center -z-10">
+        <div className="w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(187,242,176,0.04)_0%,transparent_70%)] blur-2xl" />
+      </div>
+
+      <div className="w-full max-w-[420px]">
+        <div className="relative rounded-2xl border border-[var(--border)]/80 bg-[var(--surface-1)]/70 p-7 sm:p-9 shadow-2xl backdrop-blur-md overflow-hidden">
+          {/* Subtle top spectral edge */}
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[var(--accent)]/40 to-transparent" />
+
+          {/* Header */}
+          <div className="mb-7 text-center">
+            <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] mb-4 text-[var(--accent)] shadow-[0_0_15px_rgba(187,242,176,0.1)]">
+              <LogoMark size={20} />
+            </div>
+            <h1 className="text-[20px] font-semibold tracking-tight text-[var(--text)]">
+              {mode === "login" && "Sign in to Witch"}
+              {mode === "signup" && "Create your observatory"}
+              {mode === "forgot" && "Reset your password"}
+              {mode === "reset" && "Choose a new password"}
+            </h1>
+            <p className="mt-1.5 text-[13px] text-[var(--text-muted)]">
+              {mode === "login" && "Continuous, quiet website monitoring beyond uptime."}
+              {mode === "signup" && "Start watching what visitors actually see in minutes."}
+              {mode === "forgot" && "We'll send a secure reset link to your email."}
+              {mode === "reset" && "Must be at least 10 characters with a letter and a number."}
+            </p>
           </div>
-        )}
-        {mode !== "reset" && (
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" required autoComplete="email" />
-          </div>
-        )}
-        {mode !== "forgot" && (
-          <div>
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={10}
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-            />
+
+          {/* Form */}
+          <form action={formAction} autoComplete="on" className="space-y-4">
+            {mode === "reset" ? <input type="hidden" name="token" value={resetToken ?? ""} /> : null}
+
             {mode === "signup" && (
-              <p className="mt-1.5 text-[12px] text-[var(--text-faint)]">
-                At least 10 characters, including a letter and a number.
+              <div className="space-y-1.5">
+                <Label htmlFor="name" className="text-[12px] font-medium text-[var(--text-muted)]">
+                  Your name
+                </Label>
+                <Input
+                  id="name"
+                  name="name"
+                  required
+                  autoComplete="name"
+                  placeholder="e.g. Alex Morgan"
+                  className="h-10 text-[14px] bg-[var(--surface-0)]/60 border-[var(--border)] focus:border-[var(--accent)]/60"
+                />
+              </div>
+            )}
+
+            {mode !== "reset" && (
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-[12px] font-medium text-[var(--text-muted)]">
+                  Email address
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="you@agency.com"
+                  className="h-10 text-[14px] bg-[var(--surface-0)]/60 border-[var(--border)] focus:border-[var(--accent)]/60"
+                />
+              </div>
+            )}
+
+            {mode !== "forgot" && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-[12px] font-medium text-[var(--text-muted)]">
+                    Password
+                  </Label>
+                  {mode === "login" && (
+                    <Link
+                      href="/forgot-password"
+                      className="text-[12px] text-[var(--text-faint)] hover:text-[var(--text-muted)] transition-colors"
+                    >
+                      Forgot?
+                    </Link>
+                  )}
+                </div>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  minLength={10}
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  placeholder="••••••••••••"
+                  className="h-10 text-[14px] bg-[var(--surface-0)]/60 border-[var(--border)] focus:border-[var(--accent)]/60"
+                />
+                {mode === "signup" && (
+                  <p className="text-[11px] text-[var(--text-faint)]">
+                    At least 10 characters with a letter and a number.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {state.error ? (
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-[var(--critical)]/10 border border-[var(--critical)]/25 text-[var(--critical)] text-[12px] leading-relaxed">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{state.error}</span>
+              </div>
+            ) : null}
+
+            {state.message ? (
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-[var(--healthy)]/10 border border-[var(--healthy)]/25 text-[var(--healthy)] text-[12px] leading-relaxed">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{state.message}</span>
+              </div>
+            ) : null}
+
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={pending}
+              className="w-full h-10 mt-2 font-semibold text-[13px] flex items-center justify-center gap-2"
+            >
+              {pending ? (
+                "Please wait…"
+              ) : (
+                <>
+                  {mode === "login" && "Sign in"}
+                  {mode === "signup" && "Create observatory"}
+                  {mode === "forgot" && "Send reset link"}
+                  {mode === "reset" && "Update password"}
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </Button>
+          </form>
+
+          {/* Footer links */}
+          <div className="mt-6 pt-5 border-t border-[var(--border)]/60 text-center text-[12px] text-[var(--text-muted)]">
+            {mode === "login" && (
+              <p>
+                Don&apos;t have an account?{" "}
+                <Link
+                  href="/signup"
+                  className="font-medium text-[var(--text)] hover:text-[var(--accent)] transition-colors underline underline-offset-4"
+                >
+                  Create one
+                </Link>
+              </p>
+            )}
+            {mode === "signup" && (
+              <p>
+                Already using Witch?{" "}
+                <Link
+                  href="/login"
+                  className="font-medium text-[var(--text)] hover:text-[var(--accent)] transition-colors underline underline-offset-4"
+                >
+                  Sign in
+                </Link>
+              </p>
+            )}
+            {mode === "forgot" && (
+              <p>
+                Remembered your password?{" "}
+                <Link
+                  href="/login"
+                  className="font-medium text-[var(--text)] hover:text-[var(--accent)] transition-colors underline underline-offset-4"
+                >
+                  Back to sign in
+                </Link>
               </p>
             )}
           </div>
-        )}
-        {state.error ? <p className="text-[13px] text-[var(--critical)]">{state.error}</p> : null}
-        {state.message ? <p className="text-[13px] text-[var(--healthy)]">{state.message}</p> : null}
-        <Button type="submit" disabled={pending} className="w-full">
-          {pending
-            ? "Please wait…"
-            : mode === "login"
-              ? "Sign in"
-              : mode === "signup"
-                ? "Create account"
-                : "Continue"}
-        </Button>
-      </form>
-      <div className="mt-6 space-y-2 text-[13px] text-[var(--text-muted)]">
-        {mode === "login" && (
-          <>
-            <div>
-              No account?{" "}
-              <Link href="/signup" className="prose-link text-[var(--text)]">
-                Create one
-              </Link>
-            </div>
-            <Link href="/forgot-password" className="prose-link">
-              Forgot password
-            </Link>
-          </>
-        )}
-        {mode === "signup" && (
-          <div>
-            Already using Witch?{" "}
-            <Link href="/login" className="prose-link text-[var(--text)]">
-              Sign in
-            </Link>
-          </div>
-        )}
-        {mode === "forgot" && (
-          <Link href="/login" className="prose-link">
-            Back to sign in
-          </Link>
-        )}
+        </div>
+
+        {/* Security / trust badge */}
+        <p className="mt-6 text-center text-[11px] text-[var(--text-faint)] tracking-wider uppercase">
+          Witch · Secure telemetry &amp; monitoring
+        </p>
       </div>
     </div>
   );

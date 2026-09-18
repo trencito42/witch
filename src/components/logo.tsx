@@ -1,12 +1,13 @@
 import { cn } from "@/lib/cn";
 
-export function LogoMark({ className }: { className?: string }) {
+export function LogoMark({ className, size }: { className?: string; size?: number }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 40 40"
       aria-hidden
-      className={cn("h-7 w-7 text-[var(--text)]", className)}
+      style={size ? { width: size, height: size } : undefined}
+      className={cn("h-7 w-7 text-[var(--text)] shrink-0", className)}
     >
       <path
         fill="currentColor"

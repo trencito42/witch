@@ -4,8 +4,13 @@ import { db } from "@/db";
 import { incidents, monitorChecks, sites } from "@/db/schema";
 import { requireOrgContext } from "@/server/tenancy";
 import { PageHeader } from "@/components/page-header";
-import { Button, Input, StatusBadge } from "@/components/ui";
-import { actionCreateSite } from "@/app/actions";
+import {
+  StatusBadge,
+  SegmentedControl,
+  EmptyState,
+} from "@/components/ui";
+import { AddSiteButton } from "@/components/add-site-dialog";
+import { Globe, ChevronRight, Clock, Search } from "lucide-react";
 
 export default async function SitesPage({
   searchParams,
@@ -19,8 +24,14 @@ export default async function SitesPage({
     .from(sites)
     .where(eq(sites.organizationId, ctx.organizationId))
     .orderBy(desc(sites.updatedAt));
+
   const query = (params.q ?? "").toLowerCase();
   const filter = params.filter ?? "all";
+
+  const healthyCount = all.filter((s) => s.status === "HEALTHY").length;
+  const issuesCount = all.filter((s) => ["DOWN", "DEGRADED"].includes(s.status)).length;
+  const pausedCount = all.filter((s) => s.status === "PAUSED").length;
+
   const filtered = all.filter((site) => {
     if (query && !`${site.name} ${site.url}`.toLowerCase().includes(query)) return false;
     if (filter === "healthy") return site.status === "HEALTHY";
@@ -30,62 +41,91 @@ export default async function SitesPage({
   });
 
   return (
-    <div>
+    <div className="space-y-6 animate-spectral-fade">
       <PageHeader
         title="Sites"
-        description="Websites Witch is watching for this workspace."
+        description="Active synthetic monitoring and visual regression surveillance."
+        actions={<AddSiteButton browserMonitoring={ctx.plan.browserMonitoring} />}
       />
+
       {all.length === 0 ? (
-        <div>
-          <p className="mb-4">
-            {ctx.plan.browserMonitoring
-              ? "Nothing under watch yet. Add your first website and Witch will create its initial baseline."
-              : "Nothing under watch yet. Add a website to start HTTP monitoring. Visual baselines require Freelancer or above."}
-          </p>
-          <AddSiteForm />
-        </div>
+        <EmptyState
+          title="Nothing under watch yet"
+          description={
+            ctx.plan.browserMonitoring
+              ? "Add your first website and Witch will deploy synthetic HTTP checks and capture desktop and mobile visual baselines."
+              : "Add your first website to deploy synthetic HTTP monitoring."
+          }
+          action={<AddSiteButton browserMonitoring={ctx.plan.browserMonitoring} />}
+        />
       ) : (
         <>
-          <div className="flex flex-wrap gap-3 mb-4 text-[13px]">
-            <form>
-              <Input name="q" defaultValue={params.q} placeholder="Search" className="w-56" />
+          {/* FILTER BAR & SEARCH */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
+            <SegmentedControl
+              value={filter}
+              items={[
+                { id: "all", label: "All", count: all.length, href: `/sites?filter=all${query ? `&q=${query}` : ""}` },
+                { id: "healthy", label: "Healthy", count: healthyCount, href: `/sites?filter=healthy${query ? `&q=${query}` : ""}` },
+                { id: "issues", label: "Issues", count: issuesCount, href: `/sites?filter=issues${query ? `&q=${query}` : ""}` },
+                { id: "paused", label: "Paused", count: pausedCount, href: `/sites?filter=paused${query ? `&q=${query}` : ""}` },
+              ]}
+            />
+
+            <form className="relative flex items-center w-full sm:w-64">
+              <Search className="absolute left-3 h-3.5 w-3.5 text-[var(--text-muted)] pointer-events-none" />
+              <input
+                type="search"
+                name="q"
+                defaultValue={params.q}
+                placeholder="Filter sites or URLs…"
+                className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] pl-8 pr-3 text-[13px] text-[var(--text)] transition-colors focus:border-[var(--border-focus)] focus:bg-[var(--bg-card)] focus:outline-none placeholder:text-[var(--text-faint)]"
+              />
+              {filter !== "all" && <input type="hidden" name="filter" value={filter} />}
             </form>
-            {["all", "healthy", "issues", "paused"].map((item) => (
-              <Link
-                key={item}
-                href={`/sites?filter=${item}`}
-                className={filter === item ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}
-              >
-                {item}
-              </Link>
-            ))}
           </div>
-          <table className="w-full text-[13px]">
-            <thead className="text-[var(--text-muted)] text-left">
-              <tr>
-                <th className="py-2 font-medium">Site</th>
-                <th className="font-medium">Status</th>
-                <th className="font-medium">Last check</th>
-                <th className="font-medium">Open incidents</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((site) => (
-                <SiteRow key={site.id} site={site} organizationId={ctx.organizationId} />
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-10 max-w-md">
-            <h2 className="text-[13px] text-[var(--text-muted)] mb-3">Add a site</h2>
-            <AddSiteForm />
-          </div>
+
+          {filtered.length === 0 ? (
+            <div className="p-12 text-center rounded-xl border border-[var(--border)] bg-[var(--bg-card)]/50 text-[13px] text-[var(--text-muted)]">
+              No websites match the query &quot;{query}&quot; or selected filter.
+            </div>
+          ) : (
+            <>
+              {/* DESKTOP HYBRID OBSERVATORY TABLE (md and up) */}
+              <div className="hidden md:block overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xs">
+                <table className="w-full text-left border-collapse text-[13px]">
+                  <thead>
+                    <tr className="border-b border-[var(--border)] bg-[var(--bg-elevated)]/60 text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+                      <th className="py-3 px-4">Service</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4">Last Telemetry</th>
+                      <th className="py-3 px-4">Open Incidents</th>
+                      <th className="py-3 px-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border)]">
+                    {filtered.map((site) => (
+                      <SiteTableRow key={site.id} site={site} organizationId={ctx.organizationId} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* MOBILE CARDS (below md) */}
+              <div className="md:hidden space-y-3">
+                {filtered.map((site) => (
+                  <SiteMobileCard key={site.id} site={site} organizationId={ctx.organizationId} />
+                ))}
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
   );
 }
 
-async function SiteRow({
+async function SiteTableRow({
   site,
   organizationId,
 }: {
@@ -108,31 +148,135 @@ async function SiteRow({
     .where(eq(monitorChecks.siteId, site.id))
     .orderBy(desc(monitorChecks.createdAt))
     .limit(1);
+
   return (
-    <tr className="border-t border-[var(--border)]">
-      <td className="py-3">
-        <Link href={`/sites/${site.id}`} className="block">
-          {site.name}
+    <tr className="hover:bg-[var(--bg-hover)] transition-colors group">
+      <td className="py-3.5 px-4">
+        <Link href={`/sites/${site.id}`} className="flex items-center gap-2.5">
+          {site.faviconUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={site.faviconUrl} alt="" width={18} height={18} className="rounded-xs shrink-0" />
+          ) : (
+            <Globe className="h-4 w-4 text-[var(--text-muted)] shrink-0" />
+          )}
+          <div className="min-w-0">
+            <div className="font-medium text-[var(--text)] group-hover:text-white transition-colors">
+              {site.name}
+            </div>
+            <div className="mono text-[11px] text-[var(--text-faint)] truncate max-w-xs">
+              {site.url}
+            </div>
+          </div>
         </Link>
-        <div className="mono text-[12px] text-[var(--text-faint)]">{site.url}</div>
       </td>
-      <td>
+      <td className="py-3.5 px-4">
         <StatusBadge status={site.status} />
       </td>
-      <td className="text-[var(--text-muted)]">
-        {site.lastCheckedAt ? site.lastCheckedAt.toISOString().slice(11, 16) : "—"}
-        {last?.durationMs != null ? ` · ${last.durationMs} ms` : ""}
+      <td className="py-3.5 px-4 text-[var(--text-muted)]">
+        <div className="flex items-center gap-1.5 mono text-[12px]">
+          <Clock className="h-3 w-3 text-[var(--text-faint)]" />
+          <span>
+            {site.lastCheckedAt
+              ? new Date(site.lastCheckedAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "—"}
+          </span>
+          {last?.durationMs != null && (
+            <span className="text-[var(--text-faint)]">· {last.durationMs}ms</span>
+          )}
+        </div>
       </td>
-      <td>{Number(open?.value ?? 0)}</td>
+      <td className="py-3.5 px-4">
+        {Number(open?.value ?? 0) > 0 ? (
+          <span className="text-[var(--critical)] text-[12px] font-medium">
+            {Number(open?.value ?? 0)} active
+          </span>
+        ) : (
+          <span className="text-[var(--text-faint)] text-[12px]">None</span>
+        )}
+      </td>
+      <td className="py-3.5 px-4 text-right">
+        <Link
+          href={`/sites/${site.id}`}
+          className="inline-flex items-center gap-1 text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+        >
+          <span>Inspect</span>
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Link>
+      </td>
     </tr>
   );
 }
 
-function AddSiteForm() {
+async function SiteMobileCard({
+  site,
+  organizationId,
+}: {
+  site: typeof sites.$inferSelect;
+  organizationId: string;
+}) {
+  const [open] = await db
+    .select({ value: count() })
+    .from(incidents)
+    .where(
+      and(
+        eq(incidents.siteId, site.id),
+        eq(incidents.organizationId, organizationId),
+        eq(incidents.status, "OPEN"),
+      ),
+    );
+  const [last] = await db
+    .select()
+    .from(monitorChecks)
+    .where(eq(monitorChecks.siteId, site.id))
+    .orderBy(desc(monitorChecks.createdAt))
+    .limit(1);
+
   return (
-    <form action={actionCreateSite} className="flex gap-2">
-      <Input name="url" placeholder="https://example.com" required />
-      <Button type="submit">Add</Button>
-    </form>
+    <Link
+      href={`/sites/${site.id}`}
+      className="block p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] active:bg-[var(--bg-hover)] transition-colors"
+    >
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {site.faviconUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={site.faviconUrl} alt="" width={16} height={16} className="rounded-xs shrink-0" />
+          ) : (
+            <Globe className="h-4 w-4 text-[var(--text-muted)] shrink-0" />
+          )}
+          <span className="text-[14px] font-medium text-[var(--text)] truncate">
+            {site.name}
+          </span>
+        </div>
+        <StatusBadge status={site.status} />
+      </div>
+
+      <div className="mono text-[11px] text-[var(--text-muted)] truncate mb-3">
+        {site.url}
+      </div>
+
+      <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between text-[12px] text-[var(--text-muted)] mono">
+        <div>
+          {last?.durationMs != null ? `${last.durationMs}ms` : "—"} ·{" "}
+          {site.lastCheckedAt
+            ? new Date(site.lastCheckedAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "Never"}
+        </div>
+        {Number(open?.value ?? 0) > 0 ? (
+          <span className="text-[var(--critical)] font-medium">
+            {Number(open?.value ?? 0)} open
+          </span>
+        ) : (
+          <span className="text-[var(--healthy)]">Stable</span>
+        )}
+      </div>
+    </Link>
   );
 }
+

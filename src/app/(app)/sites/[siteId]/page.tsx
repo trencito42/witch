@@ -11,7 +11,18 @@ import {
 } from "@/db/schema";
 import { requireOrgContext } from "@/server/tenancy";
 import { getSiteForOrg } from "@/features/sites/service";
-import { StatusBadge, Button, Input, Label } from "@/components/ui";
+import {
+  StatusBadge,
+  StatusDot,
+  Button,
+  Input,
+  Label,
+  Select,
+  SwitchRow,
+  Tabs,
+  MetricCard,
+  EmptyState,
+} from "@/components/ui";
 import { RunCheckButton } from "@/components/run-check-button";
 import { CompareSlider } from "@/components/compare-slider";
 import {
@@ -24,6 +35,19 @@ import {
 import { DeleteSiteButton } from "@/components/delete-site-button";
 import { computeSiteMetrics } from "@/features/reports/service";
 import { INTERVAL_OPTIONS } from "@/lib/constants";
+import {
+  Globe,
+  ExternalLink,
+  Pause,
+  Play,
+  Clock,
+  Activity,
+  ShieldAlert,
+  Settings as SettingsIcon,
+  Eye,
+  Sliders,
+  Sparkles,
+} from "lucide-react";
 
 export default async function SitePage({
   params,
@@ -42,24 +66,28 @@ export default async function SitePage({
     .select()
     .from(monitors)
     .where(and(eq(monitors.siteId, site.id), eq(monitors.organizationId, ctx.organizationId)));
+
   const checks = await db
     .select()
     .from(monitorChecks)
     .where(and(eq(monitorChecks.siteId, site.id), eq(monitorChecks.organizationId, ctx.organizationId)))
     .orderBy(desc(monitorChecks.createdAt))
     .limit(40);
+
   const siteIncidents = await db
     .select()
     .from(incidents)
     .where(and(eq(incidents.siteId, site.id), eq(incidents.organizationId, ctx.organizationId)))
     .orderBy(desc(incidents.lastDetectedAt))
     .limit(20);
+
   const snapshots = await db
     .select()
     .from(visualSnapshots)
     .where(and(eq(visualSnapshots.siteId, site.id), eq(visualSnapshots.organizationId, ctx.organizationId)))
     .orderBy(desc(visualSnapshots.createdAt))
     .limit(20);
+
   const diffs = await db
     .select()
     .from(visualDiffs)
@@ -74,255 +102,528 @@ export default async function SitePage({
   const baselineDesktop = snapshots.find((item) => item.viewport === "desktop" && item.isBaseline);
   const latestDiff = diffs[0];
 
-  const tabs = ["overview", "monitoring", "visual", "incidents", "history", "settings"];
+  const openIncidentsCount = siteIncidents.filter((item) => item.status === "OPEN").length;
+
+  const tabItems = [
+    { id: "overview", label: "Overview", icon: <Activity className="h-3.5 w-3.5" />, href: `/sites/${site.id}?tab=overview` },
+    { id: "visual", label: "Visual Baselines", icon: <Eye className="h-3.5 w-3.5" />, href: `/sites/${site.id}?tab=visual` },
+    { id: "monitoring", label: "Surveillance", icon: <Sliders className="h-3.5 w-3.5" />, count: siteMonitors.length, href: `/sites/${site.id}?tab=monitoring` },
+    { id: "incidents", label: "Incidents", icon: <ShieldAlert className="h-3.5 w-3.5" />, count: openIncidentsCount, href: `/sites/${site.id}?tab=incidents` },
+    { id: "history", label: "Check Log", icon: <Clock className="h-3.5 w-3.5" />, href: `/sites/${site.id}?tab=history` },
+    { id: "settings", label: "Settings", icon: <SettingsIcon className="h-3.5 w-3.5" />, href: `/sites/${site.id}?tab=settings` },
+  ];
 
   return (
-    <div>
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-2">
+    <div className="space-y-8 animate-spectral-fade">
+      {/* SITE HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b border-[var(--border)]">
+        <div className="space-y-1.5 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
             {site.faviconUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={site.faviconUrl} alt="" width={16} height={16} />
-            ) : null}
-            <h1 className="text-xl">{site.name}</h1>
+              <img
+                src={site.faviconUrl}
+                alt=""
+                width={22}
+                height={22}
+                className="rounded-xs shrink-0"
+              />
+            ) : (
+              <Globe className="h-5 w-5 text-[var(--text-muted)] shrink-0" />
+            )}
+            <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-[var(--text)] truncate">
+              {site.name}
+            </h1>
             <StatusBadge status={site.status} />
           </div>
-          <p className="mono text-[12px] text-[var(--text-muted)] mt-1">{site.url}</p>
+
+          <div className="flex items-center gap-2">
+            <a
+              href={site.url}
+              target="_blank"
+              rel="noreferrer"
+              className="mono text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)] flex items-center gap-1.5 transition-colors"
+            >
+              <span>{site.url}</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
         </div>
-        <div className="flex gap-2 no-print">
+
+        <div className="flex items-center gap-2.5 shrink-0 no-print">
           <RunCheckButton siteId={site.id} />
+
           <form action={actionPauseSite.bind(null, site.id, !site.pausedAt)}>
-            <Button variant="secondary">{site.pausedAt ? "Resume" : "Pause"}</Button>
+            <Button
+              type="submit"
+              variant="secondary"
+              leadingIcon={
+                site.pausedAt ? (
+                  <Play className="h-3.5 w-3.5 text-[var(--healthy)]" />
+                ) : (
+                  <Pause className="h-3.5 w-3.5 text-[var(--warning)]" />
+                )
+              }
+            >
+              {site.pausedAt ? "Resume watch" : "Pause"}
+            </Button>
           </form>
-          <Link href={`/sites/${site.id}?tab=settings`} className="text-[13px] px-3 h-9 inline-flex items-center">
-            Settings
-          </Link>
         </div>
       </div>
 
       {onboarding && (
-        <p className="mb-6 text-[14px] text-[var(--accent)]">
-          {ctx.plan.browserMonitoring
-            ? "Your site is now under watch. Witch is creating the first visual baseline."
-            : "HTTP monitoring is active. Visual monitoring requires Freelancer or above."}
-        </p>
+        <div className="flex items-center gap-3 p-4 rounded-xl border border-[rgba(187,242,176,0.3)] bg-[var(--accent-dim)] text-[13px] text-[var(--accent-strong)]">
+          <Sparkles className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+          <span>
+            {ctx.plan.browserMonitoring
+              ? "Your website is now under active surveillance. Witch has queued synthetic HTTP checks and browser baseline captures."
+              : "HTTP synthetic surveillance is active. Upgrade to Freelancer or above to enable visual regression testing."}
+          </span>
+        </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-[13px] mb-8">
-        <div>
-          <div className="text-[var(--text-muted)]">30d uptime</div>
-          <div className="text-lg">{metrics.uptime.toFixed(2)}%</div>
-        </div>
-        <div>
-          <div className="text-[var(--text-muted)]">Response</div>
-          <div className="text-lg">{Math.round(metrics.averageResponseMs) || "—"} ms</div>
-        </div>
-        <div>
-          <div className="text-[var(--text-muted)]">Last successful check</div>
-          <div>{site.lastHealthyAt ? site.lastHealthyAt.toISOString().replace("T", " ").slice(0, 16) : "—"}</div>
-        </div>
-        <div>
-          <div className="text-[var(--text-muted)]">Open incidents</div>
-          <div className="text-lg">
-            {siteIncidents.filter((item) => item.status === "OPEN").length}
-          </div>
-        </div>
+      {/* HEALTH METRICS OVERVIEW */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <MetricCard
+          label="30d Uptime"
+          value={`${metrics.uptime.toFixed(2)}%`}
+          indicator="healthy"
+          secondary={`${metrics.checks} checks`}
+        />
+        <MetricCard
+          label="Avg Latency"
+          value={Math.round(metrics.averageResponseMs) ? `${Math.round(metrics.averageResponseMs)} ms` : "—"}
+          indicator="neutral"
+          secondary="Synthetic HTTP"
+        />
+        <MetricCard
+          label="Last Healthy Check"
+          value={
+            site.lastHealthyAt
+              ? new Date(site.lastHealthyAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "—"
+          }
+          indicator={site.lastHealthyAt ? "healthy" : "neutral"}
+          secondary={site.lastHealthyAt ? new Date(site.lastHealthyAt).toLocaleDateString() : undefined}
+        />
+        <MetricCard
+          label="Active Incidents"
+          value={openIncidentsCount}
+          indicator={openIncidentsCount > 0 ? "critical" : "neutral"}
+          secondary={openIncidentsCount > 0 ? "Investigation required" : "Clean state"}
+        />
       </div>
 
-      <div className="flex gap-4 text-[13px] border-b border-[var(--border)] mb-6">
-        {tabs.map((item) => (
-          <Link
-            key={item}
-            href={`/sites/${site.id}?tab=${item}`}
-            className={`pb-2 capitalize ${tab === item ? "text-[var(--accent)] border-b border-[var(--accent)]" : "text-[var(--text-muted)]"}`}
-          >
-            {item}
-          </Link>
-        ))}
-      </div>
+      {/* TAB NAVIGATION */}
+      <Tabs items={tabItems} activeId={tab} />
 
+      {/* TAB 1: OVERVIEW */}
       {tab === "overview" && (
-        <div className="grid lg:grid-cols-2 gap-8">
-          <div>
-            <h2 className="text-[13px] text-[var(--text-muted)] mb-3">Recent checks</h2>
-            <ul className="text-[13px] space-y-1">
-              {checks.slice(0, 12).map((check) => (
-                <li key={check.id} className={check.success ? "text-[var(--text-faint)]" : "text-[var(--warning)]"}>
-                  {check.createdAt.toISOString().slice(11, 16)}{" "}
-                  {check.success ? "Healthy" : check.errorMessage ?? "Issue detected"}
-                </li>
+        <div className="grid lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-5 space-y-4">
+            <h2 className="text-[15px] font-medium text-[var(--text)] flex items-center gap-2">
+              <Activity className="h-4 w-4 text-[var(--accent)]" />
+              Latest Telemetry Feeds
+            </h2>
+
+            <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)] divide-y divide-[var(--border)]">
+              {checks.slice(0, 10).map((check) => (
+                <div key={check.id} className="p-3 flex items-center justify-between gap-3 text-[12px]">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <StatusDot
+                      status={check.success ? "HEALTHY" : "DOWN"}
+                      size="sm"
+                    />
+                    <span className="mono text-[var(--text-muted)] shrink-0">
+                      {new Date(check.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <span className="truncate text-[var(--text)]">
+                      {check.success ? "Operational check passed" : check.errorMessage ?? "Check failure"}
+                    </span>
+                  </div>
+                  <span className="mono text-[var(--text-muted)] shrink-0">
+                    {check.durationMs ? `${check.durationMs}ms` : "—"}
+                  </span>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            {currentDesktop && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={`/api/media/snapshot/${currentDesktop.id}`}
-                alt="Desktop screenshot"
-                className="border border-[var(--border)]"
-              />
-            )}
-            {currentMobile && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={`/api/media/snapshot/${currentMobile.id}`}
-                alt="Mobile screenshot"
-                className="border border-[var(--border)]"
-              />
-            )}
+
+          <div className="lg:col-span-7 space-y-4">
+            <h2 className="text-[15px] font-medium text-[var(--text)] flex items-center gap-2">
+              <Eye className="h-4 w-4 text-[var(--accent)]" />
+              Latest Visual Telemetry
+            </h2>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
+                  <span>Desktop Chromium (1440px)</span>
+                  {currentDesktop && <span className="mono">{new Date(currentDesktop.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+                </div>
+                <div className="rounded-xl border border-[var(--border)] bg-black overflow-hidden aspect-video relative group">
+                  {currentDesktop ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/api/media/snapshot/${currentDesktop.id}`}
+                      alt="Desktop snapshot"
+                      className="w-full h-full object-cover object-top"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-[12px] text-[var(--text-faint)]">
+                      Snapshot pending
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
+                  <span>Mobile Chromium (390px)</span>
+                  {currentMobile && <span className="mono">{new Date(currentMobile.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+                </div>
+                <div className="rounded-xl border border-[var(--border)] bg-black overflow-hidden aspect-video relative group">
+                  {currentMobile ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/api/media/snapshot/${currentMobile.id}`}
+                      alt="Mobile snapshot"
+                      className="w-full h-full object-contain object-top"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-[12px] text-[var(--text-faint)]">
+                      Snapshot pending
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {tab === "monitoring" && (
-        <div className="space-y-6">
-          {siteMonitors.map((monitor) => (
-            <form
-              key={monitor.id}
-              action={actionUpdateMonitor.bind(null, monitor.id)}
-              className="flex flex-wrap items-end gap-3 border-b border-[var(--border)] pb-4"
-            >
-              <div className="min-w-40">
-                <div className="text-[13px]">{monitor.name}</div>
-                <div className="text-[12px] text-[var(--text-muted)]">{monitor.type}</div>
-              </div>
-              <label className="text-[13px] flex items-center gap-2">
-                <input type="checkbox" name="enabled" defaultChecked={monitor.enabled} />
-                Enabled
-              </label>
-              <select
-                name="interval"
-                defaultValue={
-                  INTERVAL_OPTIONS.find((item) => item.seconds === monitor.intervalSeconds)?.key ?? "30m"
-                }
-                className="h-8 bg-transparent border border-[var(--border)] px-2 text-[13px]"
-              >
-                {INTERVAL_OPTIONS.map((item) => (
-                  <option key={item.key} value={item.key}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-              <div className="text-[12px] text-[var(--text-muted)]">
-                Last {monitor.lastRunAt?.toISOString().slice(11, 16) ?? "—"} · next{" "}
-                {monitor.nextRunAt.toISOString().slice(11, 16)}
-              </div>
-              <Button variant="secondary">Save</Button>
-            </form>
-          ))}
-          <form action={actionAddElementMonitor.bind(null, site.id)} className="max-w-lg space-y-3">
-            <h3 className="text-[13px]">Add element monitor</h3>
-            <div>
-              <Label>CSS selector</Label>
-              <Input name="selector" placeholder="button.checkout" />
-            </div>
-            <div>
-              <Label>Expected text</Label>
-              <Input name="expectedText" placeholder="Checkout" />
-            </div>
-            <Button>Add element check</Button>
-          </form>
-        </div>
-      )}
-
+      {/* TAB 2: VISUAL */}
       {tab === "visual" && (
         <div className="space-y-6">
           {baselineDesktop && currentDesktop ? (
-            <>
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]">
+                <div>
+                  <h3 className="text-[14px] font-medium text-[var(--text)]">
+                    Visual Baseline Comparison
+                  </h3>
+                  <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
+                    Interactive split-view between accepted baseline and latest captured Chromium frame.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {latestDiff && (
+                    <span className="px-2.5 py-1 rounded-md text-[12px] mono bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text)]">
+                      {(Number(latestDiff.differenceRatio) * 100).toFixed(2)}% pixel diff
+                      {latestDiff.aboveThreshold ? (
+                        <span className="ml-1 text-[var(--warning)] font-bold">· Above threshold</span>
+                      ) : (
+                        <span className="ml-1 text-[var(--healthy)]">· Nominal</span>
+                      )}
+                    </span>
+                  )}
+                  <form action={actionAcceptBaseline.bind(null, currentDesktop.id, site.id)}>
+                    <Button variant="primary" size="sm">
+                      Accept current as baseline
+                    </Button>
+                  </form>
+                </div>
+              </div>
+
               <CompareSlider
                 beforeSrc={`/api/media/snapshot/${baselineDesktop.id}`}
                 afterSrc={`/api/media/snapshot/${currentDesktop.id}`}
               />
-              {latestDiff && (
-                <p className="text-[13px] text-[var(--text-muted)]">
-                  {(Number(latestDiff.differenceRatio) * 100).toFixed(2)}% pixels changed
-                  {latestDiff.aboveThreshold ? " · above threshold" : " · within noise threshold"}
-                </p>
-              )}
+
               {latestDiff?.diffStorageKey && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={`/api/media/diff/${latestDiff.id}`} alt="Visual diff" className="border border-[var(--border)]" />
+                <div className="space-y-3 pt-4 border-t border-[var(--border)]">
+                  <h4 className="text-[13px] font-medium text-[var(--text-muted)]">
+                    Differential Heatmap (Pixel Diff)
+                  </h4>
+                  <div className="rounded-xl border border-[var(--border)] bg-black overflow-hidden max-w-2xl">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/media/diff/${latestDiff.id}`}
+                      alt="Visual diff heatmap"
+                      className="w-full h-auto"
+                    />
+                  </div>
+                </div>
               )}
-              {currentDesktop && (
-                <form action={actionAcceptBaseline.bind(null, currentDesktop.id, site.id)}>
-                  <Button variant="secondary">Accept current as baseline</Button>
-                </form>
-              )}
-            </>
+            </div>
           ) : (
-            <p className="text-[13px] text-[var(--text-muted)]">
-              Baseline screenshots appear after the first successful browser check.
-            </p>
+            <EmptyState
+              title="Visual baselines pending"
+              description="Visual regression baselines appear automatically after the first successful Chromium browser check completes."
+              action={<RunCheckButton siteId={site.id} />}
+            />
           )}
         </div>
       )}
 
-      {tab === "incidents" && (
-        <ul className="text-[13px] divide-y divide-[var(--border)]">
-          {siteIncidents.length === 0 && <li className="py-4">Nothing needs your attention.</li>}
-          {siteIncidents.map((incident) => (
-            <li key={incident.id} className="py-3 flex justify-between">
-              <Link href={`/incidents/${incident.id}`}>{incident.title}</Link>
-              <StatusBadge status={incident.status} />
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* TAB 3: MONITORING */}
+      {tab === "monitoring" && (
+        <div className="space-y-8 max-w-3xl">
+          <div className="space-y-4">
+            <h2 className="text-[15px] font-medium text-[var(--text)]">
+              Active Monitors
+            </h2>
 
-      {tab === "history" && (
-        <table className="w-full text-[13px]">
-          <thead className="text-left text-[var(--text-muted)]">
-            <tr>
-              <th className="py-2 font-medium">Time</th>
-              <th className="font-medium">Result</th>
-              <th className="font-medium">Code</th>
-              <th className="font-medium">Duration</th>
-            </tr>
-          </thead>
-          <tbody>
-            {checks.map((check) => (
-              <tr key={check.id} className="border-t border-[var(--border)]">
-                <td className="py-2">{check.createdAt.toISOString().replace("T", " ").slice(0, 19)}</td>
-                <td>{check.success ? "Healthy" : check.errorCode}</td>
-                <td className="mono">{check.statusCode ?? "—"}</td>
-                <td>{check.durationMs ?? "—"} ms</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            <div className="space-y-3">
+              {siteMonitors.map((monitor) => (
+                <form
+                  key={monitor.id}
+                  action={actionUpdateMonitor.bind(null, monitor.id)}
+                  className="p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-medium text-[var(--text)]">
+                        {monitor.name}
+                      </span>
+                      <span className="text-[11px] mono uppercase px-1.5 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-muted)]">
+                        {monitor.type}
+                      </span>
+                    </div>
+                    <div className="text-[12px] text-[var(--text-muted)] mono">
+                      Last: {monitor.lastRunAt ? new Date(monitor.lastRunAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Never"} · Next: {new Date(monitor.nextRunAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
 
-      {tab === "settings" && (
-        <div className="max-w-lg space-y-8">
-          <form action={actionUpdateSite.bind(null, site.id)} className="space-y-3">
-            <div>
-              <Label>Name</Label>
-              <Input name="name" defaultValue={site.name} />
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <label className="flex items-center gap-2 text-[12px] text-[var(--text-muted)] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="enabled"
+                        defaultChecked={monitor.enabled}
+                        className="accent-[var(--accent)]"
+                      />
+                      <span>Active</span>
+                    </label>
+
+                    <div className="w-28">
+                      <Select
+                        name="interval"
+                        defaultValue={
+                          INTERVAL_OPTIONS.find((item) => item.seconds === monitor.intervalSeconds)?.key ?? "30m"
+                        }
+                      >
+                        {INTERVAL_OPTIONS.map((item) => (
+                          <option key={item.key} value={item.key}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+
+                    <Button type="submit" variant="secondary" size="sm">
+                      Save
+                    </Button>
+                  </div>
+                </form>
+              ))}
             </div>
+          </div>
+
+          {/* ADD ELEMENT MONITOR */}
+          <div className="p-6 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] space-y-4">
             <div>
-              <Label>Visual sensitivity</Label>
-              <select
+              <h3 className="text-[14px] font-medium text-[var(--text)]">
+                Add DOM Element Assertion
+              </h3>
+              <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
+                Ensure crucial interactive elements (e.g. checkout buttons, forms, nav links) remain rendered and clickable.
+              </p>
+            </div>
+
+            <form action={actionAddElementMonitor.bind(null, site.id)} className="space-y-4">
+              <div>
+                <Label htmlFor="selector">CSS Selector</Label>
+                <Input
+                  id="selector"
+                  name="selector"
+                  placeholder="button.checkout, #submit-order"
+                  className="mono text-[13px]"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="expectedText">Expected Text (optional)</Label>
+                <Input
+                  id="expectedText"
+                  name="expectedText"
+                  placeholder="Checkout, Order Now"
+                />
+              </div>
+
+              <Button type="submit" variant="secondary">
+                Add element check
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: INCIDENTS */}
+      {tab === "incidents" && (
+        <div className="space-y-4">
+          {siteIncidents.length === 0 ? (
+            <EmptyState
+              title="No incidents detected"
+              description="All synthetic and visual checks for this service are healthy and within established thresholds."
+            />
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)] divide-y divide-[var(--border)]">
+              {siteIncidents.map((incident) => (
+                <Link
+                  key={incident.id}
+                  href={`/incidents/${incident.id}`}
+                  className="p-4 flex items-center justify-between gap-4 hover:bg-[var(--bg-hover)] transition-colors"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-medium text-[var(--text)]">
+                        {incident.title}
+                      </span>
+                      <StatusBadge status={incident.severity} />
+                    </div>
+                    <div className="text-[12px] text-[var(--text-muted)] flex items-center gap-2">
+                      <span>
+                        {new Date(incident.firstDetectedAt).toLocaleDateString()}{" "}
+                        {new Date(incident.firstDetectedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      <span>·</span>
+                      <span className="capitalize">{incident.category}</span>
+                    </div>
+                  </div>
+
+                  <StatusBadge status={incident.status} />
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 5: HISTORY */}
+      {tab === "history" && (
+        <div className="space-y-4">
+          <div className="hidden md:block overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xs">
+            <table className="w-full text-left border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--bg-elevated)]/60 text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+                  <th className="py-3 px-4">Timestamp</th>
+                  <th className="py-3 px-4">Result</th>
+                  <th className="py-3 px-4">HTTP Status</th>
+                  <th className="py-3 px-4">Latency</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {checks.map((check) => (
+                  <tr key={check.id} className="hover:bg-[var(--bg-hover)] transition-colors">
+                    <td className="py-3 px-4 mono text-[12px] text-[var(--text-muted)]">
+                      {new Date(check.createdAt).toLocaleString()}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-1.5">
+                        <StatusDot status={check.success ? "HEALTHY" : "DOWN"} size="sm" />
+                        <span>{check.success ? "Healthy" : check.errorCode ?? "Failed"}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 mono text-[12px]">
+                      {check.statusCode ?? "—"}
+                    </td>
+                    <td className="py-3 px-4 mono text-[12px] text-[var(--text-muted)]">
+                      {check.durationMs != null ? `${check.durationMs}ms` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile History Cards */}
+          <div className="md:hidden space-y-2">
+            {checks.map((check) => (
+              <div key={check.id} className="p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] flex items-center justify-between text-[12px]">
+                <div className="flex items-center gap-2">
+                  <StatusDot status={check.success ? "HEALTHY" : "DOWN"} size="sm" />
+                  <span className="mono text-[var(--text-muted)]">
+                    {new Date(check.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  <span>{check.success ? "Healthy" : check.errorCode ?? "Failed"}</span>
+                </div>
+                <span className="mono text-[var(--text-muted)]">
+                  {check.durationMs ? `${check.durationMs}ms` : "—"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 6: SETTINGS */}
+      {tab === "settings" && (
+        <div className="space-y-8 max-w-xl">
+          <form action={actionUpdateSite.bind(null, site.id)} className="space-y-5">
+            <div>
+              <Label htmlFor="site-name">Site Name</Label>
+              <Input id="site-name" name="name" defaultValue={site.name} required />
+            </div>
+
+            <div>
+              <Label htmlFor="sensitivity">Visual Diff Sensitivity</Label>
+              <Select
+                id="sensitivity"
                 name="visualSensitivity"
                 defaultValue={site.visualSensitivity}
-                className="h-8 w-full bg-transparent border border-[var(--border)] px-2 text-[13px]"
               >
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-              </select>
+                <option value="LOW">Low (tolerates minor font and pixel shifts)</option>
+                <option value="MEDIUM">Medium (recommended default)</option>
+                <option value="HIGH">High (alerts on subtle styling changes)</option>
+              </Select>
             </div>
-            <label className="flex items-center gap-2 text-[13px]">
-              <input type="checkbox" name="statusPageVisible" defaultChecked={site.statusPageVisible} />
-              Show on public status page
-            </label>
-            <p className="text-[12px] text-[var(--text-muted)]">URL changes are not allowed after creation to protect SSRF controls. Add a new site instead.</p>
-            <Button>Save</Button>
+
+            <SwitchRow
+              title="Show on public status page"
+              description="Make this website and its operational health visible on your organization's public status portal."
+              name="statusPageVisible"
+              defaultChecked={site.statusPageVisible}
+            />
+
+            <div className="p-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] text-[12px] text-[var(--text-muted)] leading-relaxed">
+              Target URL modifications are restricted after creation to ensure rigorous SSRF safety controls. To monitor a different domain, add a new service.
+            </div>
+
+            <Button type="submit" variant="primary">
+              Save configuration
+            </Button>
           </form>
-          <DeleteSiteButton siteId={site.id} />
+
+          {/* DANGER ZONE */}
+          <div className="pt-6 border-t border-[rgba(248,113,113,0.2)] space-y-3">
+            <h3 className="text-[14px] font-medium text-[var(--critical)]">
+              Danger Zone
+            </h3>
+            <p className="text-[12px] text-[var(--text-muted)]">
+              Deleting this site will purge all historical uptime checks, screenshots, and visual regression records.
+            </p>
+            <DeleteSiteButton siteId={site.id} />
+          </div>
         </div>
       )}
     </div>
   );
 }
+
