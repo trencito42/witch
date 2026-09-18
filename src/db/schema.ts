@@ -205,6 +205,7 @@ export const sites = mysqlTable(
     visualSensitivity: varchar("visual_sensitivity", { length: 16 })
       .notNull()
       .default("MEDIUM"),
+    ignoreSelectors: json("ignore_selectors"),
     pausedAt: datetimeOptional("paused_at"),
     lastCheckedAt: datetimeOptional("last_checked_at"),
     lastHealthyAt: datetimeOptional("last_healthy_at"),
@@ -346,6 +347,7 @@ export const visualDiffs = mysqlTable(
     width: int("width").notNull(),
     height: int("height").notNull(),
     aboveThreshold: boolean("above_threshold").notNull(),
+    metadata: json("metadata"),
     createdAt: datetimeRequired("created_at"),
   },
   (table) => [index("diff_site_idx").on(table.siteId, table.createdAt)],

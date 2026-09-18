@@ -7,6 +7,7 @@ import { APIError } from "better-auth/api";
 import { auth } from "@/auth";
 import { emailSchema, nameSchema, passwordSchema } from "@/validation";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
+import { persistDefaultOrganization } from "@/server/tenancy";
 import { writeAudit } from "@/server/audit";
 
 export type AuthState = { error?: string; message?: string };
@@ -46,6 +47,8 @@ export async function actionSignUp(
       body: { name, email, password, callbackURL: "/onboarding" },
       headers: await headers(),
     });
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (session?.user) await persistDefaultOrganization(session.user.id);
   } catch (error) {
     return authError(error);
   }
@@ -67,6 +70,8 @@ export async function actionSignIn(
       headers: await headers(),
     });
     await writeAudit({ action: "login", metadata: { ip } });
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (session?.user) await persistDefaultOrganization(session.user.id);
   } catch (error) {
     return authError(error);
   }

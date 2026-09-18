@@ -1,7 +1,7 @@
 import "server-only";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { monitors, sites } from "@/db/schema";
+import { jobs, monitors, sites } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { assertPublicHttpUrl, hostnameFromUrl, normalizeHttpUrl } from "@/lib/safe-url";
 import { canCreateSite, canUseBrowserMonitoring, minIntervalForMonitor } from "@/lib/plans";
@@ -136,16 +136,37 @@ export async function queueManualCheck(ctx: OrgContext, siteId: string) {
         eq(monitors.enabled, true),
       ),
     );
+  const jobIds: string[] = [];
+  const browserEnabled = canUseBrowserMonitoring(ctx.plan.id);
   for (const monitor of siteMonitors) {
+    if (monitor.type !== "HTTP" && !browserEnabled) continue;
     if (await hasActiveJob(monitor.id)) continue;
-    await enqueueJob({
+    const id = await enqueueJob({
       type: monitor.type === "HTTP" ? "HTTP_CHECK" : "BROWSER_CHECK",
       organizationId: ctx.organizationId,
       siteId,
       monitorId: monitor.id,
       payload: { trigger: "manual" },
     });
+    jobIds.push(id);
   }
+  if (!jobIds.length && siteMonitors.length) {
+    const active = await db
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.organizationId, ctx.organizationId),
+          inArray(
+            jobs.monitorId,
+            siteMonitors.map((monitor) => monitor.id),
+          ),
+          inArray(jobs.status, ["pending", "running"]),
+        ),
+      );
+    for (const row of active) jobIds.push(row.id);
+  }
+  return jobIds;
 }
 
 export async function pauseSite(ctx: OrgContext, siteId: string, paused: boolean) {

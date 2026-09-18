@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { apiKeys, organizations, sessions, subscriptions } from "@/db/schema";
+import { apiKeys, alertChannels, organizations, sessions, subscriptions } from "@/db/schema";
 import { requireOrgContext } from "@/server/tenancy";
 import { PageHeader } from "@/components/page-header";
 import { Button, Input, Label, Select } from "@/components/ui";
@@ -12,10 +12,14 @@ import {
   actionRevokeKey,
   actionUpdateAccount,
   actionRenameWorkspace,
+  actionAddDiscordWebhook,
+  actionAddEmailChannel,
+  actionDeleteAlertChannel,
 } from "@/app/actions";
-import { PLANS, type PlanId } from "@/lib/plans";
+import { PLANS, type PlanId, canUseEmailAlerts } from "@/lib/plans";
 import { stripeEnabled } from "@/lib/env";
 import { CreateKeyForm } from "@/components/create-key-form";
+import { maskDiscordWebhookUrl } from "@/lib/discord";
 
 export default async function SettingsPage() {
   const ctx = await requireOrgContext();
@@ -31,6 +35,10 @@ export default async function SettingsPage() {
     .limit(1);
   const keys = await db.select().from(apiKeys).where(eq(apiKeys.organizationId, ctx.organizationId));
   const userSessions = await db.select().from(sessions).where(eq(sessions.userId, ctx.userId));
+  const channels = await db
+    .select()
+    .from(alertChannels)
+    .where(eq(alertChannels.organizationId, ctx.organizationId));
 
   return (
     <div className="max-w-2xl space-y-12">
@@ -113,7 +121,62 @@ export default async function SettingsPage() {
       </section>
 
       <section>
-        <h2 className="text-[13px] text-[var(--text-muted)] mb-4">API keys</h2>
+        <h2 className="mb-4 text-[13px] text-[var(--text-muted)]">Discord alerts</h2>
+        {canUseEmailAlerts(ctx.plan.id) ? (
+          <>
+            <form action={actionAddDiscordWebhook} className="flex flex-col gap-2 sm:flex-row">
+              <Input name="webhookUrl" placeholder="https://discord.com/api/webhooks/…" className="flex-1" />
+              <Button variant="secondary">Add webhook</Button>
+            </form>
+            <ul className="mt-4 text-[13px]">
+              {channels
+                .filter((channel) => channel.type === "DISCORD_WEBHOOK")
+                .map((channel) => (
+                  <li key={channel.id} className="flex items-center justify-between border-b border-[var(--border)] py-2">
+                    <span>{maskDiscordWebhookUrl(channel.destination)}</span>
+                    <form action={actionDeleteAlertChannel.bind(null, channel.id)}>
+                      <Button variant="ghost">Remove</Button>
+                    </form>
+                  </li>
+                ))}
+            </ul>
+          </>
+        ) : (
+          <p className="text-[13px] text-[var(--text-muted)]">
+            Discord webhooks are available on Freelancer and above.
+          </p>
+        )}
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-[13px] text-[var(--text-muted)]">Email alerts</h2>
+        {canUseEmailAlerts(ctx.plan.id) ? (
+          <>
+            <form action={actionAddEmailChannel} className="flex flex-col gap-2 sm:flex-row">
+              <Input name="email" type="email" placeholder="alerts@example.com" className="flex-1" />
+              <Button variant="secondary">Add email</Button>
+            </form>
+            <ul className="mt-4 text-[13px]">
+              {channels
+                .filter((channel) => channel.type === "EMAIL")
+                .map((channel) => (
+                  <li key={channel.id} className="flex items-center justify-between border-b border-[var(--border)] py-2">
+                    <span>{channel.destination}</span>
+                    <form action={actionDeleteAlertChannel.bind(null, channel.id)}>
+                      <Button variant="ghost">Remove</Button>
+                    </form>
+                  </li>
+                ))}
+            </ul>
+          </>
+        ) : (
+          <p className="text-[13px] text-[var(--text-muted)]">
+            Email alerts are available on Freelancer and above.
+          </p>
+        )}
+      </section>
+
+      <section>
         <CreateKeyForm />
         <ul className="mt-4 text-[13px]">
           {keys.map((key) => (

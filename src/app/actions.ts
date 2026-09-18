@@ -6,13 +6,15 @@ import { z } from "zod";
 import { requireOrgContext, assertWritable, assertAdmin, setActiveOrganization } from "@/server/tenancy";
 import { createSite, deleteSite, pauseSite, queueManualCheck, getSiteForOrg } from "@/features/sites/service";
 import { acknowledgeIncident, ignoreIncident, resolveIncident } from "@/features/incidents/service";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { monitors, sites, visualSnapshots, organizations, users } from "@/db/schema";
+import { jobs, monitors, sites, visualSnapshots, organizations, users, alertChannels } from "@/db/schema";
 import { writeAudit } from "@/server/audit";
 import { INTERVALS_SECONDS } from "@/lib/constants";
-import { minIntervalForMonitor } from "@/lib/plans";
-import { cssSelectorSchema, nameSchema, orgNameSchema, passwordSchema } from "@/validation";
+import { minIntervalForMonitor, canUseEmailAlerts } from "@/lib/plans";
+import { isValidDiscordWebhookUrl } from "@/lib/discord";
+import { newId } from "@/lib/ids";
+import { cssSelectorSchema, emailSchema, nameSchema, orgNameSchema, passwordSchema } from "@/validation";
 import {
   changeRole,
   inviteMember,
@@ -48,9 +50,19 @@ export async function actionRunCheck(siteId: string) {
   assertWritable(ctx);
   const site = await getSiteForOrg(ctx.organizationId, siteId);
   if (!site) throw new Error("Site not found.");
-  await queueManualCheck(ctx, siteId);
+  const jobIds = await queueManualCheck(ctx, siteId);
   revalidatePath(`/sites/${siteId}`);
-  return { queued: true };
+  return { queued: true, jobIds };
+}
+
+export async function actionJobStatus(jobIds: string[]) {
+  const ctx = await requireOrgContext();
+  if (!jobIds.length) return [];
+  const rows = await db
+    .select({ id: jobs.id, status: jobs.status, lastError: jobs.lastError })
+    .from(jobs)
+    .where(and(eq(jobs.organizationId, ctx.organizationId), inArray(jobs.id, jobIds.slice(0, 20))));
+  return rows;
 }
 
 export async function actionPauseSite(siteId: string, paused: boolean) {
@@ -105,6 +117,8 @@ export async function actionUpdateMonitor(monitorId: string, formData: FormData)
 export async function actionAddElementMonitor(siteId: string, formData: FormData) {
   const ctx = await requireOrgContext();
   assertWritable(ctx);
+  const site = await getSiteForOrg(ctx.organizationId, siteId);
+  if (!site) throw new Error("Site not found.");
   const selector = formString(formData, "selector");
   const expectedText = formString(formData, "expectedText") || null;
   if (selector) cssSelectorSchema.parse(selector);
@@ -309,7 +323,61 @@ export async function actionCreateWorkspace(formData: FormData) {
   const ctx = await requireOrgContext();
   const name = orgNameSchema.parse(formString(formData, "name"));
   const { createOrganizationForUser } = await import("@/server/organizations");
-  const org = await createOrganizationForUser({ userId: ctx.userId, name });
+  const org = await createOrganizationForUser({
+    userId: ctx.userId,
+    name,
+    email: ctx.userEmail,
+  });
   await setActiveOrganization(org.id);
   redirect("/overview");
+}
+
+export async function actionAddDiscordWebhook(formData: FormData) {
+  const ctx = await requireOrgContext();
+  assertAdmin(ctx);
+  if (!canUseEmailAlerts(ctx.plan.id)) {
+    throw new Error("Alerts require Freelancer or above.");
+  }
+  const url = formString(formData, "webhookUrl");
+  if (!isValidDiscordWebhookUrl(url)) {
+    throw new Error("Enter a valid Discord webhook URL.");
+  }
+  await db.insert(alertChannels).values({
+    id: newId(),
+    organizationId: ctx.organizationId,
+    type: "DISCORD_WEBHOOK",
+    name: "Discord",
+    destination: url,
+    enabled: true,
+    createdAt: new Date(),
+  });
+  revalidatePath("/settings");
+}
+
+export async function actionAddEmailChannel(formData: FormData) {
+  const ctx = await requireOrgContext();
+  assertAdmin(ctx);
+  if (!canUseEmailAlerts(ctx.plan.id)) {
+    throw new Error("Alerts require Freelancer or above.");
+  }
+  const email = emailSchema.parse(formString(formData, "email")).toLowerCase();
+  await db.insert(alertChannels).values({
+    id: newId(),
+    organizationId: ctx.organizationId,
+    type: "EMAIL",
+    name: "Email",
+    destination: email,
+    enabled: true,
+    createdAt: new Date(),
+  });
+  revalidatePath("/settings");
+}
+
+export async function actionDeleteAlertChannel(channelId: string) {
+  const ctx = await requireOrgContext();
+  assertAdmin(ctx);
+  await db
+    .delete(alertChannels)
+    .where(and(eq(alertChannels.id, channelId), eq(alertChannels.organizationId, ctx.organizationId)));
+  revalidatePath("/settings");
 }

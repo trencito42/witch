@@ -6,6 +6,7 @@ import {
   sanitizeUrlForLog,
   UnsafeUrlError,
 } from "@/lib/safe-url";
+import { fetchPinned, type PinnedResponse } from "@/lib/pinned-fetch";
 
 export type HttpCheckResult = {
   success: boolean;
@@ -72,31 +73,29 @@ export async function runHttpCheck(targetUrl: string): Promise<HttpCheckResult> 
         sslValid = null;
       }
 
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), env.HTTP_CHECK_TIMEOUT_MS);
-      let response: Response;
+      let response: PinnedResponse;
       try {
-        response = await fetch(validated.href, {
+        response = await fetchPinned(validated.href, {
           method: "GET",
-          redirect: "manual",
-          signal: controller.signal,
+          timeoutMs: env.HTTP_CHECK_TIMEOUT_MS,
           headers: {
             "User-Agent": "WitchMonitor/1.0 (+https://witch.pw)",
             Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           },
         });
-      } finally {
-        clearTimeout(timeout);
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") throw error;
+        throw error;
       }
 
       statusCode = response.status;
-      response.headers.forEach((value, key) => {
-        if (["content-type", "cache-control", "server", "location"].includes(key)) {
-          headers[key] = value.slice(0, 300);
+      for (const [key, value] of Object.entries(response.headers)) {
+        if (["content-type", "cache-control", "server", "location"].includes(key.toLowerCase())) {
+          headers[key.toLowerCase()] = value.slice(0, 300);
         }
-      });
+      }
 
-      const location = response.headers.get("location");
+      const location = response.headers.location ?? response.headers.Location;
       if (statusCode >= 300 && statusCode < 400 && location) {
         redirectChain.push(sanitizeUrlForLog(validated.href));
         const next = new URL(location, validated.href).toString();

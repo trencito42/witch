@@ -20,7 +20,10 @@ export default async function OnboardingPage() {
       <p className="text-[12px] tracking-[0.18em] uppercase text-[var(--accent)] mb-3">Welcome to Witch</p>
       <h1 className="text-2xl mb-3">Add your first site</h1>
       <p className="text-[14px] text-[var(--text-muted)] mb-8">
-        Enter a public URL. Witch will validate it, create default monitors, and capture the first baseline.
+        Enter a public URL. Witch will validate it and start HTTP monitoring
+        {ctx.plan.browserMonitoring
+          ? ", then capture desktop and mobile baselines."
+          : ". Visual monitoring requires Freelancer or above."}
       </p>
       <form action={actionCreateSite} className="space-y-4">
         <div>

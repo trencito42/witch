@@ -4,10 +4,11 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { billingEvents, subscriptions } from "@/db/schema";
 import { getEnv, stripeEnabled, appUrl } from "@/lib/env";
-import { PLANS, type PlanId } from "@/lib/plans";
+import { type PlanId } from "@/lib/plans";
 import { newId } from "@/lib/ids";
 import { writeAudit } from "@/server/audit";
 import { logger } from "@/lib/logger";
+import { planFromPriceId as matchPriceId, resolveStripePlan as matchStripePlan } from "@/lib/stripe-plan";
 
 function stripeClient() {
   const env = getEnv();
@@ -23,13 +24,24 @@ function priceIdForPlan(plan: PlanId) {
   return undefined;
 }
 
-export function planFromPriceId(priceId?: string | null): PlanId {
+function priceCatalog() {
   const env = getEnv();
-  if (!priceId) return "free";
-  if (priceId === env.STRIPE_PRICE_FREELANCER) return "freelancer";
-  if (priceId === env.STRIPE_PRICE_AGENCY) return "agency";
-  if (priceId === env.STRIPE_PRICE_AGENCY_PRO) return "agency_pro";
-  return "free";
+  return {
+    freelancer: env.STRIPE_PRICE_FREELANCER,
+    agency: env.STRIPE_PRICE_AGENCY,
+    agencyPro: env.STRIPE_PRICE_AGENCY_PRO,
+  };
+}
+
+export function planFromPriceId(priceId?: string | null): PlanId | null {
+  return matchPriceId(priceId, priceCatalog());
+}
+
+export function resolveStripePlan(input: {
+  priceId?: string | null;
+  metadataPlan?: string | null;
+}): PlanId {
+  return matchStripePlan({ ...input, catalog: priceCatalog() });
 }
 
 export async function createCheckoutSession(input: {
@@ -145,6 +157,12 @@ async function applyStripeEvent(event: Stripe.Event) {
     let currentPeriodStart: Date | null = null;
     let cancelAtPeriodEnd = false;
 
+    const metadataPlan =
+      ("metadata" in object && object.metadata?.plan) ||
+      (event.type === "checkout.session.completed"
+        ? (object as Stripe.Checkout.Session).metadata?.plan
+        : null);
+
     if (event.type === "checkout.session.completed") {
       const session = object as Stripe.Checkout.Session;
       customerId = typeof session.customer === "string" ? session.customer : session.customer?.id ?? null;
@@ -152,6 +170,14 @@ async function applyStripeEvent(event: Stripe.Event) {
         typeof session.subscription === "string"
           ? session.subscription
           : session.subscription?.id ?? null;
+      if (!priceId && subscriptionId && stripeEnabled()) {
+        const stripe = stripeClient();
+        if (stripe) {
+          const remote = await stripe.subscriptions.retrieve(subscriptionId);
+          priceId = remote.items.data[0]?.price.id ?? null;
+          status = remote.status;
+        }
+      }
     } else {
       const sub = object as Stripe.Subscription & {
         current_period_end?: number;
@@ -171,7 +197,10 @@ async function applyStripeEvent(event: Stripe.Event) {
       cancelAtPeriodEnd = Boolean(sub.cancel_at_period_end);
     }
 
-    const planId = planFromPriceId(priceId) || (object.metadata?.plan as PlanId) || "free";
+    const planId = resolveStripePlan({
+      priceId,
+      metadataPlan,
+    });
     const effectivePlan = event.type === "customer.subscription.deleted" || status === "canceled"
       ? "free"
       : planId;
@@ -200,4 +229,5 @@ async function applyStripeEvent(event: Stripe.Event) {
   }
 }
 
-export { stripeEnabled, PLANS };
+export { stripeEnabled };
+export { PLANS } from "@/lib/plans";

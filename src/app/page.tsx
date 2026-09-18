@@ -12,7 +12,7 @@ const problems = [
 const checks = [
   { name: "HTTP", detail: "Status, TLS, redirects, latency." },
   { name: "Browser", detail: "Real Chromium, desktop and mobile." },
-  { name: "Visual", detail: "Pixel diffs against an accepted baseline." },
+  { name: "Visual", detail: "Pixel diffs against an accepted baseline, with noisy widgets masked." },
   { name: "Elements", detail: "Selectors and CTA text still present." },
   { name: "Diagnosis", detail: "AI only when something actually changed." },
 ];

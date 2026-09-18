@@ -1,6 +1,6 @@
 import "server-only";
-import { and, eq, inArray, lte, sql } from "drizzle-orm";
-import { db } from "@/db";
+import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { db, getPool } from "@/db";
 import { jobs, type Job } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { JOB_STALE_MS } from "@/lib/constants";
@@ -44,6 +44,15 @@ export async function enqueueJob(input: {
   return id;
 }
 
+export async function hasJobCreatedSince(type: JobType, since: Date) {
+  const rows = await db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(eq(jobs.type, type), gte(jobs.createdAt, since)))
+    .limit(1);
+  return Boolean(rows[0]);
+}
+
 export async function hasActiveJob(monitorId: string) {
   const rows = await db
     .select({ id: jobs.id })
@@ -58,30 +67,48 @@ export async function hasActiveJob(monitorId: string) {
   return Boolean(rows[0]);
 }
 
-export async function claimNextJob(workerId = `${os.hostname()}:${process.pid}`): Promise<Job | null> {
+export async function claimNextJob(
+  workerId = `${os.hostname()}:${process.pid}`,
+  options?: { excludeTypes?: JobType[] },
+): Promise<Job | null> {
   const now = new Date();
-  const [claimed] = await db
-    .select()
-    .from(jobs)
-    .where(and(eq(jobs.status, "pending"), lte(jobs.runAt, now)))
-    .orderBy(jobs.runAt)
-    .limit(1);
+  const conn = await getPool().getConnection();
+  let claimedId: string | null = null;
+  try {
+    await conn.beginTransaction();
+    const exclude = options?.excludeTypes?.length
+      ? `AND type NOT IN (${options.excludeTypes.map(() => "?").join(",")})`
+      : "";
+    const params: unknown[] = ["pending", now, ...(options?.excludeTypes ?? [])];
+    const [rows] = await conn.query(
+      `SELECT * FROM job WHERE status = ? AND run_at <= ? ${exclude} ORDER BY run_at ASC LIMIT 1 FOR UPDATE`,
+      params,
+    );
+    const picked = Array.isArray(rows) ? (rows[0] as Record<string, unknown> | undefined) : undefined;
+    if (!picked?.id) {
+      await conn.commit();
+      return null;
+    }
+    claimedId = String(picked.id);
+    const [updated] = await conn.query(
+      `UPDATE job SET status = 'running', claimed_at = ?, claimed_by = ?, attempts = attempts + 1 WHERE id = ? AND status = 'pending'`,
+      [now, workerId, claimedId],
+    );
+    const header = updated as { affectedRows?: number };
+    if (!header?.affectedRows) {
+      await conn.rollback();
+      return null;
+    }
+    await conn.commit();
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+  }
 
-  if (!claimed) return null;
-
-  const result = await db
-    .update(jobs)
-    .set({
-      status: "running",
-      claimedAt: now,
-      claimedBy: workerId,
-      attempts: claimed.attempts + 1,
-    })
-    .where(and(eq(jobs.id, claimed.id), eq(jobs.status, "pending")));
-
-  if (result[0].affectedRows === 0) return null;
-
-  const [fresh] = await db.select().from(jobs).where(eq(jobs.id, claimed.id)).limit(1);
+  if (!claimedId) return null;
+  const [fresh] = await db.select().from(jobs).where(eq(jobs.id, claimedId)).limit(1);
   return fresh ?? null;
 }
 

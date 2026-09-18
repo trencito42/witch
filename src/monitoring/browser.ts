@@ -1,8 +1,13 @@
 import { chromium, type Browser, type BrowserContext } from "playwright";
 import { getEnv } from "@/lib/env";
-import { VIEWPORTS, MAX_CONSOLE_EVENTS, MAX_FAILED_REQUESTS, MAX_SNAPSHOT_BYTES } from "@/lib/constants";
+import { VIEWPORTS, MAX_CONSOLE_EVENTS, MAX_FAILED_REQUESTS } from "@/lib/constants";
 import { assertPublicHttpUrl, sanitizeUrlForLog, UnsafeUrlError } from "@/lib/safe-url";
 import { extractDomSignals, type DomSignals } from "./dom";
+import { ImageNormalizeError, normalizeScreenshot } from "./image";
+import { collectIgnoreRegionsInPage, ignoreRegionCollectorArgs } from "./masks";
+import type { IgnoreRegion } from "./regions";
+import { fetchPinned, publicHeadersFromRequest } from "@/lib/pinned-fetch";
+import { stabilizePage } from "./stabilize";
 
 export type BrowserCheckResult = {
   success: boolean;
@@ -17,12 +22,14 @@ export type BrowserCheckResult = {
   screenshot: Buffer | null;
   consoleErrors: string[];
   pageErrors: string[];
-  failedRequests: { url: string; status: number | null; method: string }[];
+  failedRequests: { url: string; status: number | null; method: string; resourceType?: string }[];
   responses400: { url: string; status: number }[];
   navigationTiming: Record<string, number> | null;
   dom: DomSignals | null;
   elementFound?: boolean;
   elementText?: string | null;
+  pageStabilized: boolean;
+  ignoreRegions: IgnoreRegion[];
 };
 
 let browserPromise: Promise<Browser> | null = null;
@@ -72,6 +79,7 @@ export async function runBrowserCheck(input: {
   viewport: "desktop" | "mobile";
   selector?: string | null;
   expectedText?: string | null;
+  ignoreSelectors?: string[];
 }): Promise<BrowserCheckResult> {
   const startedAt = new Date();
   const env = getEnv();
@@ -93,10 +101,10 @@ export async function runBrowserCheck(input: {
       bypassCSP: false,
       permissions: [],
       colorScheme: "light",
+      locale: "en-US",
+      timezoneId: "UTC",
       userAgent: `Mozilla/5.0 (compatible; WitchMonitor/1.0; +https://witch.pw) ${
-        input.viewport === "mobile"
-          ? "Mobile"
-          : "Desktop"
+        input.viewport === "mobile" ? "Mobile" : "Desktop"
       }`,
       extraHTTPHeaders: { "Accept-Language": "en-US,en;q=0.8" },
     });
@@ -106,7 +114,11 @@ export async function runBrowserCheck(input: {
       const request = route.request();
       const url = request.url();
       const resourceType = request.resourceType();
-      if (["media", "font"].includes(resourceType) && failedRequests.length > MAX_FAILED_REQUESTS) {
+      if (url.startsWith("data:") || url.startsWith("blob:")) {
+        await route.continue();
+        return;
+      }
+      if (resourceType === "websocket") {
         await route.abort("blockedbyclient");
         return;
       }
@@ -114,11 +126,21 @@ export async function runBrowserCheck(input: {
         await route.abort("blockedbyclient");
         return;
       }
-      if (request.failure()?.errorText === "net::ERR_TOO_MANY_REDIRECTS") {
-        await route.abort();
-        return;
+      try {
+        const pinned = await fetchPinned(url, {
+          method: request.method(),
+          headers: publicHeadersFromRequest(request.headers()),
+          body: request.postDataBuffer(),
+          timeoutMs: Math.min(env.BROWSER_CHECK_TIMEOUT_MS, 20_000),
+        });
+        await route.fulfill({
+          status: pinned.status,
+          headers: pinned.headers,
+          body: pinned.body,
+        });
+      } catch {
+        await route.abort("failed");
       }
-      await route.continue();
     });
 
     const page = await context.newPage();
@@ -139,6 +161,7 @@ export async function runBrowserCheck(input: {
           url: sanitizeUrlForLog(request.url()),
           status: null,
           method: request.method(),
+          resourceType: request.resourceType(),
         });
       }
     });
@@ -148,13 +171,12 @@ export async function runBrowserCheck(input: {
           url: sanitizeUrlForLog(response.url()),
           status: response.status(),
         });
-        if (response.status() >= 400) {
-          failedRequests.push({
-            url: sanitizeUrlForLog(response.url()),
-            status: response.status(),
-            method: response.request().method(),
-          });
-        }
+        failedRequests.push({
+          url: sanitizeUrlForLog(response.url()),
+          status: response.status(),
+          method: response.request().method(),
+          resourceType: response.request().resourceType(),
+        });
       }
     });
 
@@ -162,7 +184,9 @@ export async function runBrowserCheck(input: {
       waitUntil: "domcontentloaded",
       timeout: Math.min(env.BROWSER_CHECK_TIMEOUT_MS, 25_000),
     });
-    await page.waitForTimeout(1200);
+    const stabilize = await stabilizePage(page, {
+      timeoutMs: Math.min(5_000, env.BROWSER_CHECK_TIMEOUT_MS / 6),
+    });
 
     let elementFound: boolean | undefined;
     let elementText: string | null | undefined;
@@ -180,16 +204,24 @@ export async function runBrowserCheck(input: {
       elementText = elementFound ? input.expectedText : null;
     }
 
-    const screenshot = await page.screenshot({
+    const ignoreRegions = await page
+      .evaluate(collectIgnoreRegionsInPage, ignoreRegionCollectorArgs(input.ignoreSelectors ?? []))
+      .catch(() => [] as IgnoreRegion[]);
+
+    const rawScreenshot = await page.screenshot({
       type: "png",
       fullPage: false,
       animations: "disabled",
       timeout: 10_000,
     });
-    const clipped =
-      screenshot.byteLength > MAX_SNAPSHOT_BYTES
-        ? screenshot.subarray(0, MAX_SNAPSHOT_BYTES)
-        : screenshot;
+    let screenshot: Buffer | null = null;
+    let screenshotError: string | null = null;
+    try {
+      screenshot = (await normalizeScreenshot(rawScreenshot)).buffer;
+    } catch (error) {
+      screenshotError =
+        error instanceof ImageNormalizeError ? error.message : "Screenshot could not be stored safely";
+    }
 
     const dom = (await page.evaluate(extractDomSignals)) as DomSignals;
     const timing = await page.evaluate(() => {
@@ -210,11 +242,11 @@ export async function runBrowserCheck(input: {
       completedAt,
       durationMs: completedAt.getTime() - startedAt.getTime(),
       statusCode,
-      errorCode: null,
-      errorMessage: null,
+      errorCode: screenshotError ? "SCREENSHOT_LIMIT" : null,
+      errorMessage: screenshotError,
       finalUrl: page.url(),
       pageTitle: await page.title(),
-      screenshot: Buffer.from(clipped),
+      screenshot,
       consoleErrors: unique(consoleErrors.concat(pageErrors)),
       pageErrors,
       failedRequests: uniqueFailed(failedRequests),
@@ -223,6 +255,8 @@ export async function runBrowserCheck(input: {
       dom,
       elementFound,
       elementText,
+      pageStabilized: stabilize.stabilized,
+      ignoreRegions,
     };
   } catch (error) {
     const completedAt = new Date();
@@ -251,6 +285,8 @@ export async function runBrowserCheck(input: {
       responses400,
       navigationTiming: null,
       dom: null,
+      pageStabilized: false,
+      ignoreRegions: [],
     };
   } finally {
     if (context) await context.close();

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { incidents, organizations, sites } from "@/db/schema";
 import { StatusBadge } from "@/components/ui";
@@ -26,12 +26,15 @@ export default async function StatusPage({
     : orgSites.some((site) => site.status === "DEGRADED")
       ? "Degraded"
       : "Operational";
-  const history = await db
-    .select()
-    .from(incidents)
-    .where(eq(incidents.organizationId, org.id))
-    .orderBy(desc(incidents.firstDetectedAt))
-    .limit(20);
+  const visibleIds = orgSites.map((site) => site.id);
+  const history = visibleIds.length
+    ? await db
+        .select()
+        .from(incidents)
+        .where(and(eq(incidents.organizationId, org.id), inArray(incidents.siteId, visibleIds)))
+        .orderBy(desc(incidents.firstDetectedAt))
+        .limit(20)
+    : [];
 
   return (
     <div className="min-h-screen px-6 py-10 max-w-2xl mx-auto">

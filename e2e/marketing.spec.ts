@@ -6,8 +6,8 @@ test("landing page renders", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Start monitoring" }).first()).toBeVisible();
 });
 
-test("signup form is real", async ({ page }) => {
-  await page.goto("/signup");
+test("login form is real", async ({ page }) => {
+  await page.goto("/login");
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Password")).toBeVisible();
 });

@@ -29,6 +29,31 @@ export class UnsafeUrlError extends Error {
   }
 }
 
+function fixtureAllowed(url: URL) {
+  const enabled = process.env.FIXTURE_ENABLED === "true" || process.env.FIXTURE_ENABLED === "1";
+  if (!enabled) return false;
+  const port = String(process.env.FIXTURE_PORT ?? 3456);
+  const hostOk = url.hostname === "127.0.0.1" || url.hostname === "localhost";
+  const portOk = url.port === port || (url.port === "" && port === "80");
+  return hostOk && portOk;
+}
+
+function decodeDecimalIp(hostname: string): string | null {
+  if (!/^\d+$/.test(hostname)) return null;
+  const value = Number(hostname);
+  if (!Number.isSafeInteger(value) || value < 0 || value > 0xffffffff) return null;
+  const n = value >>> 0;
+  return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join(".");
+}
+
+function looksLikeEncodedIp(hostname: string) {
+  if (/^0x[0-9a-f]+$/i.test(hostname)) return true;
+  if (/^0[0-7]+$/.test(hostname)) return true;
+  if (/^\d+$/.test(hostname) && hostname.length > 3) return true;
+  if (hostname.split(".").some((part) => /^0x/i.test(part) || /^0[0-7]+$/.test(part))) return true;
+  return false;
+}
+
 export function normalizeHttpUrl(input: string): string {
   const trimmed = input.trim();
   if (!trimmed) throw new UnsafeUrlError("URL is required");
@@ -109,6 +134,7 @@ export function isPrivateOrReservedIp(ip: string): boolean {
 export function assertSafeUrlShape(input: string): URL {
   const normalized = normalizeHttpUrl(input);
   const url = new URL(normalized);
+  if (fixtureAllowed(url)) return url;
   const scheme = url.protocol.replace(":", "");
   if (BLOCKED_SCHEMES.has(scheme)) {
     throw new UnsafeUrlError("URL scheme is not allowed");
@@ -118,6 +144,13 @@ export function assertSafeUrlShape(input: string): URL {
   }
   if (isBlockedHostname(url.hostname)) {
     throw new UnsafeUrlError("Internal hostnames cannot be monitored");
+  }
+  if (looksLikeEncodedIp(url.hostname)) {
+    throw new UnsafeUrlError("Encoded IP hostnames are not allowed");
+  }
+  const decimalIp = decodeDecimalIp(url.hostname);
+  if (decimalIp && isPrivateOrReservedIp(decimalIp)) {
+    throw new UnsafeUrlError("Private or reserved IP addresses are not allowed");
   }
   if (net.isIP(url.hostname) && isPrivateOrReservedIp(url.hostname)) {
     throw new UnsafeUrlError("Private or reserved IP addresses are not allowed");
@@ -154,19 +187,34 @@ export async function assertPublicHttpUrl(input: string): Promise<{
   addresses: string[];
 }> {
   const url = assertSafeUrlShape(input);
+  if (fixtureAllowed(url)) {
+    return { href: url.toString(), hostname: url.hostname, addresses: ["127.0.0.1"] };
+  }
   const addresses = await resolvePublicAddress(url.hostname);
   return { href: url.toString(), hostname: url.hostname, addresses };
 }
+
+const SENSITIVE_QUERY = /^(token|auth|key|password|secret|signature|sig|access_token|session|jwt|api[_-]?key)$/i;
 
 export function sanitizeUrlForLog(input: string): string {
   try {
     const url = new URL(input);
     url.username = "";
     url.password = "";
-    url.search = "";
     url.hash = "";
+    if ([...url.searchParams.keys()].some((key) => SENSITIVE_QUERY.test(key)) || url.search.length > 0) {
+      url.search = "";
+    }
     return url.toString();
   } catch {
     return "[invalid-url]";
   }
+}
+
+export function sanitizeEvidence(value: string): string {
+  return value
+    .replace(/(authorization|cookie|set-cookie)\s*[:=]\s*("[^"]+"|[^\s]+)/gi, "$1=[redacted]")
+    .replace(/\b(sk-|rk_|pk_)[a-z0-9]+/gi, "[redacted-key]")
+    .replace(/\beyJ[a-z0-9_-]{10,}\.[a-z0-9_-]+\.[a-z0-9_-]+/gi, "[redacted-jwt]")
+    .slice(0, 400);
 }

@@ -30,6 +30,18 @@ export const VISUAL_SENSITIVITY = {
   HIGH: { pixelThreshold: 0.08, changeRatio: 0.01, label: "High" },
 } as const;
 
+export const MONITORING_THRESHOLDS = {
+  overflowPx: 8,
+  overflowRatio: 0.02,
+  maxAutoMaskViewportRatio: 0.22,
+  minChangedRegionPixels: 48,
+  layoutSettleMs: 180,
+  layoutSettleRounds: 6,
+  stabilizeBudgetMs: 4_500,
+  textReductionSignificant: 0.45,
+  maxAutoMaskRegions: 12,
+} as const;
+
 export type VisualSensitivity = keyof typeof VISUAL_SENSITIVITY;
 
 export const JOB_STALE_MS = 10 * 60 * 1000;

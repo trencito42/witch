@@ -37,7 +37,11 @@ export default async function SitesPage({
       />
       {all.length === 0 ? (
         <div>
-          <p className="mb-4">Nothing under watch yet. Add your first website and Witch will create its initial baseline.</p>
+          <p className="mb-4">
+            {ctx.plan.browserMonitoring
+              ? "Nothing under watch yet. Add your first website and Witch will create its initial baseline."
+              : "Nothing under watch yet. Add a website to start HTTP monitoring. Visual baselines require Freelancer or above."}
+          </p>
           <AddSiteForm />
         </div>
       ) : (

@@ -43,9 +43,6 @@ export async function requireOrgContext(
     memberships[0]!.id;
 
   const membership = memberships.find((item) => item.id === selectedId) ?? memberships[0]!;
-  if (!cookieOrg || cookieOrg !== membership.id) {
-    await setActiveOrganization(membership.id);
-  }
   const memberRow = await findMembership(session.user.id, membership.id);
   if (!memberRow) throw new AuthorizationError();
 
@@ -104,4 +101,9 @@ export async function setActiveOrganization(organizationId: string) {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
   });
+}
+
+export async function persistDefaultOrganization(userId: string) {
+  const orgs = await findOrganizationsForUser(userId);
+  if (orgs[0]) await setActiveOrganization(orgs[0].id);
 }

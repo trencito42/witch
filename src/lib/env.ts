@@ -89,6 +89,12 @@ const schema = z.object({
   CHECK_CONFIRMATION_DELAY_SECONDS: z.coerce.number().default(45),
   BROWSER_CHECK_TIMEOUT_MS: z.coerce.number().default(45_000),
   HTTP_CHECK_TIMEOUT_MS: z.coerce.number().default(15_000),
+  WORKER_CONCURRENCY: z.coerce.number().default(2),
+  BROWSER_CONCURRENCY: z.coerce.number().default(1),
+  AI_VISION_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v !== "false"),
   MAX_REDIRECTS: z.coerce.number().default(5),
 });
 
@@ -134,6 +140,9 @@ function readEnv(): Env {
       process.env.CHECK_CONFIRMATION_DELAY_SECONDS,
     BROWSER_CHECK_TIMEOUT_MS: process.env.BROWSER_CHECK_TIMEOUT_MS,
     HTTP_CHECK_TIMEOUT_MS: process.env.HTTP_CHECK_TIMEOUT_MS,
+    WORKER_CONCURRENCY: process.env.WORKER_CONCURRENCY,
+    BROWSER_CONCURRENCY: process.env.BROWSER_CONCURRENCY,
+    AI_VISION_ENABLED: process.env.AI_VISION_ENABLED,
     MAX_REDIRECTS: process.env.MAX_REDIRECTS,
   });
 

@@ -11,6 +11,15 @@ const empty = (): DomSignals => ({
   images: [{ tag: "IMG", src: "/hero.png", alt: "Hero" }],
   textBlocks: ["Welcome to the store"],
   landmarkCount: 4,
+  viewportWidth: 390,
+  viewportHeight: 844,
+  documentWidth: 390,
+  horizontalOverflow: false,
+  bodyTextLength: 40,
+  looksLikeErrorPage: false,
+  brokenImages: [],
+  formsMissingSubmit: 0,
+  offscreenButtons: [],
 });
 
 describe("dom diff", () => {
@@ -24,10 +33,12 @@ describe("dom diff", () => {
     expect(diff.missingForms).toBe(1);
   });
 
-  it("ignores tiny text drift", () => {
+  it("flags mobile overflow against a mobile baseline", () => {
     const current = empty();
-    current.textBlocks = ["Welcome to the store!"];
-    expect(diffDomSignals(empty(), current).significant).toBe(false);
+    current.horizontalOverflow = true;
+    current.documentWidth = 1200;
+    expect(diffDomSignals(empty(), current).significant).toBe(true);
+    expect(diffDomSignals(empty(), current).horizontalOverflow).toBe(true);
   });
 });
 

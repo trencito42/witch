@@ -5,6 +5,8 @@ import { incidentEvents, incidents, sites } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { enqueueJob } from "@/server/jobs";
 import type { ClassifiedIssue } from "@/monitoring/classify";
+import { shouldRecoverAfterSuccesses } from "@/monitoring/classify";
+import { sanitizeEvidence } from "@/lib/safe-url";
 import { aiEnabled } from "@/lib/env";
 
 const SEVERITY_RANK: Record<string, number> = {
@@ -21,6 +23,8 @@ export async function applyIssues(input: {
   monitorId: string;
   issues: ClassifiedIssue[];
   confirmUptime: boolean;
+  consecutiveSuccesses?: number;
+  recoverAfterSuccesses?: number;
 }) {
   const open = await db
     .select()
@@ -35,12 +39,17 @@ export async function applyIssues(input: {
 
   const seen = new Set(input.issues.map((issue) => `${input.monitorId}:${issue.fingerprint}`));
   const recovered: typeof open = [];
+  const recoverReady = shouldRecoverAfterSuccesses(
+    input.consecutiveSuccesses ?? 0,
+    input.recoverAfterSuccesses ?? 1,
+  );
 
   for (const incident of open) {
     if (incident.monitorId && incident.monitorId !== input.monitorId) continue;
     const fingerprint = incident.fingerprint.replace(`${input.monitorId}:`, "");
     const key = `${input.monitorId}:${fingerprint}`;
     if (!seen.has(key) && incident.monitorId === input.monitorId) {
+      if (!recoverReady) continue;
       recovered.push(incident);
     }
   }
@@ -86,7 +95,10 @@ export async function applyIssues(input: {
       firstDetectedAt: now,
       lastDetectedAt: now,
       occurrenceCount: 1,
-      metadata: { evidence: issue.evidence, ...(issue.metadata ?? {}) },
+      metadata: {
+        evidence: issue.evidence.map(sanitizeEvidence),
+        ...(issue.metadata ?? {}),
+      },
       createdAt: now,
       updatedAt: now,
     });
@@ -131,6 +143,12 @@ export async function resolveIncident(
     .set({ status: "RESOLVED", resolvedAt: now, updatedAt: now })
     .where(and(eq(incidents.id, incidentId), eq(incidents.organizationId, organizationId)));
   await addEvent(incidentId, organizationId, "resolved", message, actorUserId);
+  const [row] = await db
+    .select({ siteId: incidents.siteId })
+    .from(incidents)
+    .where(and(eq(incidents.id, incidentId), eq(incidents.organizationId, organizationId)))
+    .limit(1);
+  if (row?.siteId) await refreshSiteStatus(row.siteId, organizationId);
   await enqueueJob({
     type: "EMAIL_ALERT",
     organizationId,
@@ -161,6 +179,12 @@ export async function ignoreIncident(
     .set({ status: "IGNORED", updatedAt: new Date() })
     .where(and(eq(incidents.id, incidentId), eq(incidents.organizationId, organizationId)));
   await addEvent(incidentId, organizationId, "ignored", "Ignored.", actorUserId);
+  const [row] = await db
+    .select({ siteId: incidents.siteId })
+    .from(incidents)
+    .where(and(eq(incidents.id, incidentId), eq(incidents.organizationId, organizationId)))
+    .limit(1);
+  if (row?.siteId) await refreshSiteStatus(row.siteId, organizationId);
 }
 
 async function addEvent(

@@ -86,16 +86,52 @@ export function classifyHttp(input: {
 }
 
 export function classifyBrowser(input: {
+  success?: boolean;
+  errorCode?: string | null;
+  statusCode?: number | null;
   consoleErrors: string[];
-  failedRequests: { url: string; status: number | null }[];
+  failedRequests: { url: string; status: number | null; kind?: string; visibleImpact?: boolean }[];
   visualChanged: boolean;
   differenceRatio?: number;
+  filteredDifferenceRatio?: number;
+  boundingBox?: { x: number; y: number; width: number; height: number } | null;
   missingSelector?: string | null;
   missingText?: string | null;
   domSignificant?: boolean;
   domMissingButtons?: string[];
+  horizontalOverflow?: boolean;
+  looksLikeErrorPage?: boolean;
+  brokenImages?: string[];
+  emptyBody?: boolean;
+  formsMissingSubmit?: number;
 }): ClassifiedIssue[] {
   const issues: ClassifiedIssue[] = [];
+  if (input.success === false) {
+    if (input.errorCode === "TIMEOUT") {
+      issues.push({
+        category: "PERFORMANCE",
+        severity: "HIGH",
+        title: "Browser check timed out",
+        summary: "Chromium did not finish loading the page within the timeout.",
+        fingerprint: "browser-timeout",
+        evidence: [input.errorCode],
+      });
+    } else if (input.errorCode === "SCREENSHOT_LIMIT") {
+      // Storage pressure is not a site outage.
+    } else {
+      issues.push({
+        category: "UPTIME",
+        severity: input.statusCode && input.statusCode >= 500 ? "CRITICAL" : "HIGH",
+        title: input.statusCode ? `Browser HTTP ${input.statusCode}` : "Browser check failed",
+        summary:
+          input.errorCode === "UNSAFE_URL"
+            ? "The URL was blocked by the SSRF policy."
+            : "The browser check could not complete.",
+        fingerprint: `browser:${input.statusCode ?? input.errorCode ?? "failed"}`,
+        evidence: [input.errorCode ?? "browser_failure"],
+      });
+    }
+  }
   if (input.missingSelector || input.missingText) {
     issues.push({
       category: "ELEMENT",
@@ -109,47 +145,76 @@ export function classifyBrowser(input: {
     });
   }
   if (input.visualChanged) {
+    const ratio = input.filteredDifferenceRatio ?? input.differenceRatio ?? 0;
     issues.push({
       category: "VISUAL",
-      severity: (input.differenceRatio ?? 0) > 0.12 ? "HIGH" : "MEDIUM",
+      severity: ratio > 0.12 ? "HIGH" : "MEDIUM",
       title: "Visual layout changed",
-      summary: `The screenshot differs from the accepted baseline${
-        input.differenceRatio != null
-          ? ` (${(input.differenceRatio * 100).toFixed(1)}% pixels).`
-          : "."
-      }`,
+      summary: `The screenshot differs from the accepted baseline (${(ratio * 100).toFixed(1)}% filtered pixels).`,
       fingerprint: "visual",
       evidence: [
-        input.differenceRatio != null
-          ? `difference=${input.differenceRatio.toFixed(4)}`
+        `difference=${(input.differenceRatio ?? 0).toFixed(4)}`,
+        `filtered=${ratio.toFixed(4)}`,
+        input.boundingBox
+          ? `box=${input.boundingBox.x},${input.boundingBox.y},${input.boundingBox.width}x${input.boundingBox.height}`
           : "visual-change",
       ],
+      metadata: {
+        boundingBox: input.boundingBox ?? null,
+        differenceRatio: input.differenceRatio,
+        filteredDifferenceRatio: input.filteredDifferenceRatio,
+      },
     });
   }
-  if (input.domSignificant) {
+  if (input.domSignificant || input.looksLikeErrorPage || input.emptyBody || (input.brokenImages?.length ?? 0) > 0) {
+    const details = [
+      ...(input.domMissingButtons ?? []),
+      ...(input.brokenImages ?? []).map((item) => `broken-image:${item}`),
+      input.horizontalOverflow ? "mobile-overflow" : "",
+      input.looksLikeErrorPage ? "error-page-body" : "",
+      input.emptyBody ? "empty-body" : "",
+      input.formsMissingSubmit ? "form-missing-submit" : "",
+    ].filter(Boolean);
     issues.push({
       category: "CONTENT",
-      severity: "MEDIUM",
-      title: "Page content changed",
+      severity: input.looksLikeErrorPage || input.emptyBody ? "HIGH" : "MEDIUM",
+      title: input.horizontalOverflow
+        ? "Mobile layout overflow"
+        : input.domMissingButtons?.length
+          ? "Page content changed"
+          : "Page structure changed",
       summary: input.domMissingButtons?.length
         ? `Missing controls: ${input.domMissingButtons.slice(0, 3).join(", ")}.`
-        : "Structural content is substantially different from the baseline.",
-      fingerprint: "content",
-      evidence: input.domMissingButtons ?? ["dom-diff"],
+        : input.horizontalOverflow
+          ? "The page is wider than the mobile viewport."
+          : "Structural content is substantially different from the baseline.",
+      fingerprint: input.horizontalOverflow ? "mobile-overflow" : "content",
+      evidence: details.length ? details : ["dom-diff"],
     });
   }
-  const uniqueFailed = uniqueBy(input.failedRequests, (item) => item.url);
-  if (uniqueFailed.length >= 3) {
+  const impactful = uniqueBy(
+    input.failedRequests.filter(
+      (item) => item.visibleImpact !== false && item.kind !== "tracker" && item.kind !== "favicon",
+    ),
+    (item) => item.url,
+  );
+  const serious = impactful.filter((item) =>
+    ["stylesheet", "script", "image", "document"].includes(item.kind ?? ""),
+  );
+  if (serious.length >= 1 || impactful.length >= 3) {
     issues.push({
       category: "NETWORK",
-      severity: uniqueFailed.some((item) => (item.status ?? 0) >= 500)
+      severity: impactful.some((item) => (item.status ?? 0) >= 500 || item.kind === "stylesheet" || item.kind === "script")
         ? "HIGH"
         : "MEDIUM",
-      title: `${uniqueFailed.length} unique failed resources`,
-      summary: "The page requested resources that failed to load.",
+      title:
+        impactful.length === 1
+          ? "Visible asset failed to load"
+          : `${impactful.length} unique failed resources`,
+      summary: "The page requested first-party or visible assets that failed to load.",
       fingerprint: "network",
-      evidence: uniqueFailed.slice(0, 12).map((item) => `${item.status ?? "err"} ${item.url}`),
-      metadata: { failedRequests: uniqueFailed.slice(0, 40) },
+      evidence: impactful.slice(0, 12).map((item) => `${item.status ?? "err"} ${item.kind ?? "asset"} ${item.url}`),
+      metadata: { failedRequests: impactful.slice(0, 40) },
     });
   }
   const uniqueJs = uniqueBy(
@@ -182,4 +247,16 @@ function uniqueBy<T>(items: T[], key: (item: T) => string) {
     output.push(item);
   }
   return output;
+}
+
+export function shouldCreateUptimeIssue(confirmUptime: boolean) {
+  return confirmUptime;
+}
+
+export function shouldRecoverAfterSuccesses(consecutiveSuccesses: number, required: number) {
+  return consecutiveSuccesses >= required;
+}
+
+export function incidentFingerprint(monitorId: string, issueFingerprint: string) {
+  return `${monitorId}:${issueFingerprint}`;
 }

@@ -11,7 +11,7 @@ const a = 'style="color:#b7e4c7;text-decoration:none;"';
 
 export function welcomeEmail(input: { name: string; appUrl: string }) {
   return `<p ${p}>Hello ${escapeHtml(input.name)},</p>
-<p ${p}>Your Witch workspace is ready. Add a site and we will create the first baseline automatically.</p>
+<p ${p}>Your Witch workspace is ready. Add a site to start HTTP monitoring. Visual baselines start on Freelancer and above.</p>
 <p ${p}><a ${a} href="${escapeHtml(input.appUrl)}/overview">Open Witch</a></p>`;
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyBrowser, classifyHttp } from "./classify";
+import { classifyBrowser, classifyHttp, shouldRecoverAfterSuccesses } from "./classify";
 
 describe("classifyHttp", () => {
   it("treats 500 as critical uptime", () => {
@@ -42,5 +42,48 @@ describe("classifyBrowser", () => {
       visualChanged: false,
     });
     expect(issues.find((i) => i.category === "NETWORK")?.title).toContain("3 unique");
+  });
+
+  it("does not open a network incident for trackers only", () => {
+    const issues = classifyBrowser({
+      consoleErrors: [],
+      failedRequests: [
+        { url: "https://www.google-analytics.com/g/collect", status: 404, kind: "tracker", visibleImpact: false },
+        { url: "https://shop.example/favicon.ico", status: 404, kind: "favicon", visibleImpact: false },
+      ],
+      visualChanged: false,
+    });
+    expect(issues.find((i) => i.category === "NETWORK")).toBeUndefined();
+  });
+
+  it("opens an uptime incident when the browser check times out", () => {
+    const issues = classifyBrowser({
+      success: false,
+      errorCode: "TIMEOUT",
+      statusCode: null,
+      consoleErrors: [],
+      failedRequests: [],
+      visualChanged: false,
+    });
+    expect(issues[0]?.fingerprint).toBe("browser-timeout");
+  });
+
+  it("opens an uptime incident when Chromium fails without an error code", () => {
+    const issues = classifyBrowser({
+      success: false,
+      errorCode: null,
+      statusCode: null,
+      consoleErrors: [],
+      failedRequests: [],
+      visualChanged: false,
+    });
+    expect(issues.some((issue) => issue.category === "UPTIME")).toBe(true);
+  });
+});
+
+describe("incident recovery gating", () => {
+  it("requires confirmation successes", () => {
+    expect(shouldRecoverAfterSuccesses(1, 2)).toBe(false);
+    expect(shouldRecoverAfterSuccesses(2, 2)).toBe(true);
   });
 });

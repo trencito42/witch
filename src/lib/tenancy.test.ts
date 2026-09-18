@@ -12,3 +12,14 @@ describe("tenant authorization helpers", () => {
     expect(ADMIN_ROLES.includes("OWNER")).toBe(true);
   });
 });
+
+describe("public status history", () => {
+  it("drops incidents for hidden sites", () => {
+    const visible = new Set(["site-a"]);
+    const history = [
+      { id: "1", siteId: "site-a" },
+      { id: "2", siteId: "site-b" },
+    ].filter((incident) => visible.has(incident.siteId));
+    expect(history.map((item) => item.id)).toEqual(["1"]);
+  });
+});

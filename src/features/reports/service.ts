@@ -1,7 +1,7 @@
 import "server-only";
 import { and, avg, count, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { incidents, monitorChecks, reports, reportItems, sites } from "@/db/schema";
+import { incidents, monitorChecks, monitors, reports, reportItems, sites } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { canUseReports } from "@/lib/plans";
 import { getPlanLimits } from "@/lib/plans";
@@ -24,10 +24,12 @@ export async function computeSiteMetrics(
       avgResponse: avg(monitorChecks.durationMs),
     })
     .from(monitorChecks)
+    .innerJoin(monitors, eq(monitors.id, monitorChecks.monitorId))
     .where(
       and(
         eq(monitorChecks.organizationId, organizationId),
         eq(monitorChecks.siteId, siteId),
+        eq(monitors.type, "HTTP"),
         gte(monitorChecks.createdAt, from),
         lte(monitorChecks.createdAt, to),
       ),
@@ -97,8 +99,8 @@ export async function generateMonthlyReports(now = new Date()) {
       continue;
     }
     const items: [string, string][] = [
-      ["Uptime", `${metrics.uptime.toFixed(2)}%`],
-      ["Checks", String(metrics.checks)],
+      ["Uptime (HTTP)", `${metrics.uptime.toFixed(2)}%`],
+      ["HTTP checks", String(metrics.checks)],
       ["Incidents detected", String(metrics.incidentsDetected)],
       ["Incidents resolved", String(metrics.incidentsResolved)],
       ["Average response", `${Math.round(metrics.averageResponseMs)} ms`],

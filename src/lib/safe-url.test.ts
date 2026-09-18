@@ -3,6 +3,7 @@ import {
   assertSafeUrlShape,
   isPrivateOrReservedIp,
   normalizeHttpUrl,
+  sanitizeEvidence,
   UnsafeUrlError,
 } from "./safe-url";
 
@@ -44,6 +45,11 @@ describe("assertSafeUrlShape", () => {
     expect(() => assertSafeUrlShape("ftp://example.com")).toThrow(UnsafeUrlError);
   });
 
+  it("rejects encoded loopback hosts", () => {
+    expect(() => assertSafeUrlShape("http://2130706433")).toThrow(UnsafeUrlError);
+    expect(() => assertSafeUrlShape("http://0x7f000001")).toThrow(UnsafeUrlError);
+  });
+
   it("allows public https hosts", () => {
     expect(assertSafeUrlShape("https://example.com/app").hostname).toBe(
       "example.com",
@@ -65,5 +71,12 @@ describe("isPrivateOrReservedIp", () => {
   it("allows public unicast", () => {
     expect(isPrivateOrReservedIp("8.8.8.8")).toBe(false);
     expect(isPrivateOrReservedIp("1.1.1.1")).toBe(false);
+  });
+});
+
+describe("sanitizeEvidence", () => {
+  it("redacts secrets", () => {
+    expect(sanitizeEvidence("Authorization: Bearer abc.def")).toContain("[redacted]");
+    expect(sanitizeEvidence("token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.aaa.bbb")).toContain("[redacted-jwt]");
   });
 });

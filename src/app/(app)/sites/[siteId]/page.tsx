@@ -103,7 +103,9 @@ export default async function SitePage({
 
       {onboarding && (
         <p className="mb-6 text-[14px] text-[var(--accent)]">
-          Your site is now under watch. Witch is creating the first baseline.
+          {ctx.plan.browserMonitoring
+            ? "Your site is now under watch. Witch is creating the first visual baseline."
+            : "HTTP monitoring is active. Visual monitoring requires Freelancer or above."}
         </p>
       )}
 

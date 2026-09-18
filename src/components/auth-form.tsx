@@ -38,7 +38,7 @@ export function AuthForm({
         {mode === "forgot" && "Reset password"}
         {mode === "reset" && "Choose a new password"}
       </h1>
-      <form action={formAction} method="post" autoComplete="on" className="space-y-4">
+      <form action={formAction} autoComplete="on" className="space-y-4">
         {mode === "reset" ? <input type="hidden" name="token" value={resetToken ?? ""} /> : null}
         {mode === "signup" && (
           <div>

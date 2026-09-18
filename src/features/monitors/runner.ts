@@ -18,13 +18,15 @@ import { runHttpCheck } from "@/monitoring/http";
 import { runBrowserCheck } from "@/monitoring/browser";
 import { compareScreenshots, imageMeta, toWebp } from "@/monitoring/visual";
 import { diffDomSignals, type DomSignals } from "@/monitoring/dom";
-import { classifyBrowser, classifyHttp } from "@/monitoring/classify";
+import { classifyBrowser, classifyHttp, shouldRecoverAfterSuccesses } from "@/monitoring/classify";
+import { meaningfulFailedResources } from "@/monitoring/assets";
 import { applyIssues } from "@/features/incidents/service";
 import { enqueueJob } from "@/server/jobs";
 import type { VisualSensitivity } from "@/lib/constants";
 import { canUseBrowserMonitoring, canUseVisualMonitoring } from "@/lib/plans";
 import { getPlanLimits } from "@/lib/plans";
 import { subscriptions } from "@/db/schema";
+import { hostnameFromUrl, sanitizeEvidence } from "@/lib/safe-url";
 
 function jitter(intervalSeconds: number) {
   const spread = Math.min(30, Math.round(intervalSeconds * 0.08));
@@ -118,6 +120,8 @@ export async function processHttpMonitor(monitor: Monitor, site: Site, trigger: 
     monitorId: monitor.id,
     issues,
     confirmUptime,
+    consecutiveSuccesses: successes,
+    recoverAfterSuccesses: env.HTTP_RECOVERY_SUCCESSES,
   });
   log.info({ success: result.success, statusCode: result.statusCode }, "http check complete");
 }
@@ -128,11 +132,13 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
     return;
   }
   const viewport = (monitor.viewport as "desktop" | "mobile") ?? "desktop";
+  const ignoreSelectors = Array.isArray(site.ignoreSelectors) ? (site.ignoreSelectors as string[]) : [];
   const result = await runBrowserCheck({
     url: site.url,
     viewport,
     selector: monitor.selector,
     expectedText: monitor.expectedText,
+    ignoreSelectors,
   });
   const checkId = newId();
   await db.insert(monitorChecks).values({
@@ -151,10 +157,11 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
     pageTitle: result.pageTitle,
     trigger,
     summary: {
-      consoleErrors: result.consoleErrors,
+      consoleErrors: result.consoleErrors.map(sanitizeEvidence),
       failedRequests: result.failedRequests,
       navigationTiming: result.navigationTiming,
       elementFound: result.elementFound,
+      pageStabilized: result.pageStabilized,
     },
     createdAt: new Date(),
   });
@@ -163,15 +170,36 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
     .set({ lastCheckedAt: new Date(), updatedAt: new Date() })
     .where(eq(sites.id, site.id));
 
+  const checkOk = result.success && Boolean(result.screenshot);
+  const failures = checkOk ? 0 : monitor.consecutiveFailures + 1;
+  const successes = checkOk ? monitor.consecutiveSuccesses + 1 : 0;
+  await db
+    .update(monitors)
+    .set({
+      consecutiveFailures: failures,
+      consecutiveSuccesses: successes,
+      updatedAt: new Date(),
+    })
+    .where(eq(monitors.id, monitor.id));
+
   let visualChanged = false;
   let differenceRatio: number | undefined;
+  let filteredDifferenceRatio: number | undefined;
+  let boundingBox: { x: number; y: number; width: number; height: number } | null = null;
   let domSignificant = false;
   let missingButtons: string[] = [];
   let snapshotId: string | null = null;
+  let horizontalOverflow = false;
+  let looksLikeErrorPage = false;
+  let brokenImages: string[] = [];
+  let emptyBody = false;
+  let formsMissingSubmit = 0;
 
-  if (result.screenshot) {
+  const screenshotUsable = Boolean(result.screenshot) && result.errorCode !== "SCREENSHOT_LIMIT";
+
+  if (screenshotUsable && result.screenshot) {
     const webp = await toWebp(result.screenshot);
-    const meta = await imageMeta(result.screenshot);
+    const meta = await imageMeta(webp);
     snapshotId = newId();
     const key = snapshotKey({
       organizationId: site.organizationId,
@@ -187,10 +215,11 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
         and(
           eq(visualSnapshots.monitorId, monitor.id),
           eq(visualSnapshots.isBaseline, true),
+          eq(visualSnapshots.viewport, viewport),
         ),
       )
       .limit(1);
-    const isBaseline = !baseline;
+    const isBaseline = !baseline && result.success;
     await db.insert(visualSnapshots).values({
       id: snapshotId,
       organizationId: site.organizationId,
@@ -215,6 +244,7 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
           baselineBytes,
           webp,
           (site.visualSensitivity as VisualSensitivity) ?? "MEDIUM",
+          result.ignoreRegions,
         );
         const diffId = newId();
         let diffKey: string | null = null;
@@ -236,32 +266,70 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
           baselineSnapshotId: baseline.id,
           currentSnapshotId: snapshotId,
           diffStorageKey: diffKey,
-          differenceRatio: diff.differenceRatio.toFixed(6),
-          changedPixels: diff.changedPixels,
+          differenceRatio: diff.filteredDifferenceRatio.toFixed(6),
+          changedPixels: diff.filteredChangedPixels,
           width: diff.width,
           height: diff.height,
           aboveThreshold: diff.aboveThreshold,
+          metadata: {
+            rawDifferenceRatio: diff.differenceRatio,
+            filteredDifferenceRatio: diff.filteredDifferenceRatio,
+            boundingBox: diff.boundingBox,
+            boundingBoxes: diff.boundingBoxes,
+            localized: diff.localized,
+            pageStabilized: result.pageStabilized,
+          },
           createdAt: new Date(),
         });
         visualChanged = diff.aboveThreshold;
         differenceRatio = diff.differenceRatio;
+        filteredDifferenceRatio = diff.filteredDifferenceRatio;
+        boundingBox = diff.boundingBox;
       }
       if (baseline.domSignals && result.dom) {
         const domDiff = diffDomSignals(baseline.domSignals as DomSignals, result.dom);
         domSignificant = domDiff.significant;
         missingButtons = domDiff.missingButtons;
+        horizontalOverflow = domDiff.horizontalOverflow;
+        looksLikeErrorPage = domDiff.looksLikeErrorPage;
+        brokenImages = domDiff.brokenImages;
+        emptyBody = domDiff.emptyBody;
+        formsMissingSubmit = domDiff.formsMissingSubmit;
       }
     }
+  } else if (result.dom?.looksLikeErrorPage || result.dom?.horizontalOverflow || (result.dom?.brokenImages.length ?? 0) > 0) {
+    looksLikeErrorPage = Boolean(result.dom?.looksLikeErrorPage);
+    horizontalOverflow = Boolean(result.dom?.horizontalOverflow);
+    brokenImages = result.dom?.brokenImages ?? [];
+    emptyBody = (result.dom?.bodyTextLength ?? 0) < 40;
+    formsMissingSubmit = result.dom?.formsMissingSubmit ?? 0;
+    domSignificant = true;
   }
 
+  const pageHost = (() => {
+    try {
+      return hostnameFromUrl(site.url);
+    } catch {
+      return "";
+    }
+  })();
+  const classifiedAssets = meaningfulFailedResources(result.failedRequests, pageHost);
+
   const issues = classifyBrowser({
-    consoleErrors: result.consoleErrors,
-    failedRequests: result.failedRequests.map((item) => ({
+    success: result.success,
+    errorCode: result.errorCode,
+    statusCode: result.statusCode,
+    consoleErrors: result.consoleErrors.map(sanitizeEvidence),
+    failedRequests: classifiedAssets.map((item) => ({
       url: item.url,
       status: item.status,
+      kind: item.kind,
+      visibleImpact: item.visibleImpact,
     })),
     visualChanged,
     differenceRatio,
+    filteredDifferenceRatio,
+    boundingBox,
     missingSelector:
       monitor.type === "ELEMENT" && result.elementFound === false
         ? monitor.selector ?? "text"
@@ -272,14 +340,34 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
         : null,
     domSignificant,
     domMissingButtons: missingButtons,
+    horizontalOverflow,
+    looksLikeErrorPage,
+    brokenImages,
+    emptyBody,
+    formsMissingSubmit,
   });
 
+  const env = getEnv();
+  const connectivityFailure = !result.success && result.errorCode !== "SCREENSHOT_LIMIT";
+  if (connectivityFailure && failures === 1) {
+    await enqueueJob({
+      type: "CONFIRM_CHECK",
+      organizationId: site.organizationId,
+      siteId: site.id,
+      monitorId: monitor.id,
+      runAt: new Date(Date.now() + env.CHECK_CONFIRMATION_DELAY_SECONDS * 1000),
+      payload: { reason: "browser-confirm" },
+      maxAttempts: 2,
+    });
+  }
   await applyIssues({
     organizationId: site.organizationId,
     siteId: site.id,
     monitorId: monitor.id,
     issues,
-    confirmUptime: true,
+    confirmUptime: connectivityFailure ? failures >= env.HTTP_CONFIRMATION_FAILURES : true,
+    consecutiveSuccesses: successes,
+    recoverAfterSuccesses: env.HTTP_RECOVERY_SUCCESSES,
   });
 }
 
@@ -287,7 +375,18 @@ export async function processMonitor(monitorId: string, trigger = "schedule") {
   const [monitor] = await db.select().from(monitors).where(eq(monitors.id, monitorId)).limit(1);
   if (!monitor || !monitor.enabled) return;
   const [site] = await db.select().from(sites).where(eq(sites.id, monitor.siteId)).limit(1);
-  if (!site || site.pausedAt) return;
+  if (!site || site.pausedAt) {
+    if (monitor) {
+      await db
+        .update(monitors)
+        .set({
+          nextRunAt: new Date(Date.now() + monitor.intervalSeconds * 1000),
+          updatedAt: new Date(),
+        })
+        .where(eq(monitors.id, monitor.id));
+    }
+    return;
+  }
   try {
     if (monitor.type === "HTTP") await processHttpMonitor(monitor, site, trigger);
     else await processBrowserMonitor(monitor, site, trigger);
@@ -295,3 +394,5 @@ export async function processMonitor(monitorId: string, trigger = "schedule") {
     await scheduleNext(monitor);
   }
 }
+
+export { shouldRecoverAfterSuccesses };

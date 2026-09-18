@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   aiUsages,
@@ -16,6 +16,7 @@ import { canUseEmailAlerts, getPlanLimits } from "@/lib/plans";
 import { subscriptions } from "@/db/schema";
 import { sendIncidentAlertEmail, sendRecoveryAlertEmail } from "@/emails/send";
 import { emailEnabled } from "@/lib/env";
+import { isValidDiscordWebhookUrl, sendDiscordWebhook } from "@/lib/discord";
 import { logger } from "@/lib/logger";
 
 const SEVERITY_RANK: Record<string, number> = {
@@ -35,9 +36,14 @@ export async function processAiAnalysis(incidentId: string, organizationId: stri
   if (!incident) return;
   if (incident.aiAnalysis) return;
   const [site] = await db.select().from(sites).where(eq(sites.id, incident.siteId)).limit(1);
-  const evidence = Array.isArray((incident.metadata as { evidence?: string[] } | null)?.evidence)
-    ? ((incident.metadata as { evidence: string[] }).evidence)
-    : [];
+  const meta = (incident.metadata ?? {}) as {
+    evidence?: string[];
+    boundingBox?: { x: number; y: number; width: number; height: number };
+    differenceRatio?: number;
+    filteredDifferenceRatio?: number;
+  };
+  const evidence = Array.isArray(meta.evidence) ? meta.evidence : [];
+  const images = incident.category === "VISUAL" ? await visualEvidenceImages(incident.siteId, organizationId) : undefined;
   const result = await analyzeIncidentSafe({
     siteUrl: site?.url ?? "",
     monitorType: incident.category,
@@ -45,6 +51,10 @@ export async function processAiAnalysis(incidentId: string, organizationId: stri
     summary: incident.summary,
     category: incident.category.toLowerCase(),
     evidence,
+    visualDifferenceRatio: meta.filteredDifferenceRatio ?? meta.differenceRatio,
+    boundingBox: meta.boundingBox,
+    observedFacts: evidence,
+    images,
   });
   if (!result) return;
   await db
@@ -63,11 +73,36 @@ export async function processAiAnalysis(incidentId: string, organizationId: stri
   });
 }
 
+async function visualEvidenceImages(siteId: string, organizationId: string) {
+  const { visualDiffs, visualSnapshots } = await import("@/db/schema");
+  const { desc } = await import("drizzle-orm");
+  const [diff] = await db
+    .select()
+    .from(visualDiffs)
+    .where(and(eq(visualDiffs.siteId, siteId), eq(visualDiffs.organizationId, organizationId)))
+    .orderBy(desc(visualDiffs.createdAt))
+    .limit(1);
+  if (!diff) return undefined;
+  const ids = [diff.baselineSnapshotId, diff.currentSnapshotId];
+  const snaps = await db.select().from(visualSnapshots).where(inArray(visualSnapshots.id, ids));
+  const byId = new Map(snaps.map((item) => [item.id, item]));
+  const { getStorage } = await import("@/storage");
+  const storage = getStorage();
+  const baseline = byId.get(diff.baselineSnapshotId);
+  const current = byId.get(diff.currentSnapshotId);
+  const [baselineBytes, currentBytes, diffBytes] = await Promise.all([
+    baseline ? storage.get(baseline.storageKey) : Promise.resolve(null),
+    current ? storage.get(current.storageKey) : Promise.resolve(null),
+    diff.diffStorageKey ? storage.get(diff.diffStorageKey) : Promise.resolve(null),
+  ]);
+  return {
+    baseline: baselineBytes ?? undefined,
+    current: currentBytes ?? undefined,
+    diff: diffBytes ?? undefined,
+  };
+}
+
 export async function processEmailAlert(incidentId: string, organizationId: string, kind: string) {
-  if (!emailEnabled()) {
-    logger.info({ incidentId, kind }, "email alert skipped");
-    return;
-  }
   const [sub] = await db
     .select()
     .from(subscriptions)
@@ -91,40 +126,56 @@ export async function processEmailAlert(incidentId: string, organizationId: stri
   const channels = await db
     .select()
     .from(alertChannels)
-    .where(
-      and(
-        eq(alertChannels.organizationId, organizationId),
-        eq(alertChannels.type, "EMAIL"),
-        eq(alertChannels.enabled, true),
-      ),
-    );
+    .where(and(eq(alertChannels.organizationId, organizationId), eq(alertChannels.enabled, true)));
 
   const evidence = Array.isArray((incident.metadata as { evidence?: string[] } | null)?.evidence)
     ? (incident.metadata as { evidence: string[] }).evidence
     : [];
   const incidentUrl = `${appUrl()}/incidents/${incident.id}`;
+  let emailError: Error | null = null;
 
   for (const channel of channels) {
     try {
-      if (kind === "resolved") {
-        await sendRecoveryAlertEmail({
-          to: channel.destination,
-          siteName: site?.name ?? "Site",
-          title: incident.title,
-          incidentUrl,
+      if (channel.type === "EMAIL") {
+        if (!emailEnabled()) continue;
+        if (kind === "resolved") {
+          await sendRecoveryAlertEmail({
+            to: channel.destination,
+            siteName: site?.name ?? "Site",
+            title: incident.title,
+            incidentUrl,
+          });
+        } else {
+          await sendIncidentAlertEmail({
+            to: channel.destination,
+            siteName: site?.name ?? "Site",
+            siteUrl: site?.url ?? "",
+            title: incident.title,
+            severity: incident.severity,
+            detectedAt: incident.firstDetectedAt.toISOString(),
+            summary: incident.summary,
+            evidence,
+            incidentUrl,
+          });
+        }
+      } else if (channel.type === "DISCORD_WEBHOOK") {
+        if (!isValidDiscordWebhookUrl(channel.destination)) {
+          throw new Error("Invalid Discord webhook URL");
+        }
+        await sendDiscordWebhook({
+          webhookUrl: channel.destination,
+          title: kind === "resolved" ? `Recovered: ${incident.title}` : incident.title,
+          description: incident.summary,
+          color: kind === "resolved" ? 0x3dd68c : 0xff5a36,
+          url: incidentUrl,
+          fields: [
+            { name: "Site", value: site?.name ?? "Site", inline: true },
+            { name: "Severity", value: incident.severity, inline: true },
+            { name: "Evidence", value: evidence.slice(0, 4).join("\n") || "See incident" },
+          ],
         });
       } else {
-        await sendIncidentAlertEmail({
-          to: channel.destination,
-          siteName: site?.name ?? "Site",
-          siteUrl: site?.url ?? "",
-          title: incident.title,
-          severity: incident.severity,
-          detectedAt: incident.firstDetectedAt.toISOString(),
-          summary: incident.summary,
-          evidence,
-          incidentUrl,
-        });
+        continue;
       }
       await db.insert(alertDeliveries).values({
         id: newId(),
@@ -146,7 +197,12 @@ export async function processEmailAlert(incidentId: string, organizationId: stri
         errorMessage: error instanceof Error ? error.message.slice(0, 512) : "send failed",
         createdAt: new Date(),
       });
-      throw error;
+      if (channel.type === "EMAIL") {
+        emailError = error instanceof Error ? error : new Error("send failed");
+      } else {
+        logger.warn({ channelId: channel.id, kind }, "discord webhook delivery failed");
+      }
     }
   }
+  if (emailError) throw emailError;
 }

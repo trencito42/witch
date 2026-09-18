@@ -94,6 +94,7 @@ export async function createPersonalOrganization(input: {
 export async function createOrganizationForUser(input: {
   userId: string;
   name: string;
+  email?: string;
 }) {
   const now = new Date();
   const orgId = newId();
@@ -102,6 +103,7 @@ export async function createOrganizationForUser(input: {
     id: orgId,
     name: input.name,
     slug,
+    billingEmail: input.email ?? null,
     createdAt: now,
     updatedAt: now,
   });
@@ -120,6 +122,17 @@ export async function createOrganizationForUser(input: {
     createdAt: now,
     updatedAt: now,
   });
+  if (input.email) {
+    await db.insert(alertChannels).values({
+      id: newId(),
+      organizationId: orgId,
+      type: "EMAIL",
+      name: "Account email",
+      destination: input.email,
+      enabled: true,
+      createdAt: now,
+    });
+  }
   return { id: orgId, slug, name: input.name };
 }
 

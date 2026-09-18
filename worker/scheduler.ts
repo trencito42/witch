@@ -1,10 +1,11 @@
-import { and, eq, lte, sql } from "drizzle-orm";
+import { and, eq, lte } from "drizzle-orm";
 import { db } from "@/db";
-import { jobs, monitors, sites, systemHeartbeats } from "@/db/schema";
-import { enqueueJob, hasActiveJob } from "@/server/jobs";
+import { monitors, sites, systemHeartbeats } from "@/db/schema";
+import { enqueueJob, hasActiveJob, hasJobCreatedSince } from "@/server/jobs";
 import { logger } from "@/lib/logger";
 import { getPlanLimits } from "@/lib/plans";
 import { subscriptions } from "@/db/schema";
+import { utcHourStart } from "@/lib/schedule";
 
 async function heartbeat() {
   await db
@@ -33,7 +34,16 @@ export async function tickScheduler() {
     .limit(200);
 
   for (const row of due) {
-    if (row.site.pausedAt) continue;
+    if (row.site.pausedAt) {
+      await db
+        .update(monitors)
+        .set({
+          nextRunAt: new Date(Date.now() + row.monitor.intervalSeconds * 1000),
+          updatedAt: new Date(),
+        })
+        .where(eq(monitors.id, row.monitor.id));
+      continue;
+    }
     if (await hasActiveJob(row.monitor.id)) continue;
     const [sub] = await db
       .select()
@@ -41,7 +51,24 @@ export async function tickScheduler() {
       .where(eq(subscriptions.organizationId, row.monitor.organizationId))
       .limit(1);
     const plan = getPlanLimits(sub?.planId ?? "free");
-    if (row.monitor.type !== "HTTP" && !plan.browserMonitoring) continue;
+    if (row.monitor.type !== "HTTP" && !plan.browserMonitoring) {
+      await db
+        .update(monitors)
+        .set({
+          nextRunAt: new Date(Date.now() + row.monitor.intervalSeconds * 1000),
+          updatedAt: new Date(),
+        })
+        .where(eq(monitors.id, row.monitor.id));
+      continue;
+    }
+    const claimed = await db
+      .update(monitors)
+      .set({
+        nextRunAt: new Date(Date.now() + row.monitor.intervalSeconds * 1000),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(monitors.id, row.monitor.id), lte(monitors.nextRunAt, now)));
+    if (claimed[0].affectedRows === 0) continue;
     const type = row.monitor.type === "HTTP" ? "HTTP_CHECK" : "BROWSER_CHECK";
     await enqueueJob({
       type,
@@ -51,35 +78,19 @@ export async function tickScheduler() {
       payload: { trigger: "schedule" },
       runAt: new Date(Date.now() + jitterMs(row.monitor.intervalSeconds, plan.priorityChecks)),
     });
-    await db
-      .update(monitors)
-      .set({
-        nextRunAt: new Date(Date.now() + row.monitor.intervalSeconds * 1000),
-        updatedAt: new Date(),
-      })
-      .where(eq(monitors.id, row.monitor.id));
   }
 
   const hour = now.getUTCHours();
   const day = now.getUTCDate();
+  const hourStart = utcHourStart(now);
   if (day === 1 && hour === 6) {
-    const [existing] = await db
-      .select({ id: jobs.id })
-      .from(jobs)
-      .where(and(eq(jobs.type, "MONTHLY_REPORT"), eq(jobs.status, "pending")))
-      .limit(1);
-    if (!existing) {
-      await enqueueJob({ type: "MONTHLY_REPORT", payload: {} });
+    if (!(await hasJobCreatedSince("MONTHLY_REPORT", hourStart))) {
+      await enqueueJob({ type: "MONTHLY_REPORT", payload: { period: hourStart.toISOString() } });
     }
   }
   if (hour === 3) {
-    const [existing] = await db
-      .select({ id: jobs.id })
-      .from(jobs)
-      .where(and(eq(jobs.type, "SCREENSHOT_CLEANUP"), eq(jobs.status, "pending")))
-      .limit(1);
-    if (!existing) {
-      await enqueueJob({ type: "SCREENSHOT_CLEANUP", payload: {} });
+    if (!(await hasJobCreatedSince("SCREENSHOT_CLEANUP", hourStart))) {
+      await enqueueJob({ type: "SCREENSHOT_CLEANUP", payload: { period: hourStart.toISOString() } });
     }
   }
 }
@@ -109,5 +120,3 @@ const startedDirectly = process.argv[1]?.includes("worker/scheduler");
 if (startedDirectly) {
   void runSchedulerLoop();
 }
-
-void sql;
