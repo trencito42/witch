@@ -11,7 +11,7 @@ import { db } from "@/db";
 import { jobs, monitors, sites, visualSnapshots, organizations, users, alertChannels, sessions } from "@/db/schema";
 import { writeAudit } from "@/server/audit";
 import { INTERVALS_SECONDS } from "@/lib/constants";
-import { minIntervalForMonitor, canUseEmailAlerts } from "@/lib/plans";
+import { minIntervalForMonitor, canUseEmailAlerts, canUseBrowserMonitoring } from "@/lib/plans";
 import { isValidDiscordWebhookUrl } from "@/lib/discord";
 import { newId } from "@/lib/ids";
 import { cssSelectorSchema, emailSchema, nameSchema, orgNameSchema, orgRoleSchema, passwordSchema } from "@/validation";
@@ -125,6 +125,9 @@ export async function actionAddElementMonitor(siteId: string, formData: FormData
   assertWritable(ctx);
   const site = await getSiteForOrg(ctx.organizationId, siteId);
   if (!site) throw new Error("Site not found.");
+  if (!canUseBrowserMonitoring(ctx.plan.id)) {
+    throw new Error("Element monitors require Freelancer or above.");
+  }
   const selector = formString(formData, "selector");
   const expectedText = formString(formData, "expectedText") || null;
   if (selector) cssSelectorSchema.parse(selector);
@@ -334,17 +337,29 @@ export async function actionRevokeSession(sessionId: string) {
 export async function actionDeleteAccount() {
   const ctx = await requireOrgContext();
   const memberships = await findOrganizationsForUser(ctx.userId);
-  for (const org of memberships.filter((item) => item.role === "OWNER")) {
+  const owned = memberships.filter((item) => item.role === "OWNER");
+  for (const org of owned) {
     const n = await memberCount(org.id);
     if (n > 1) {
       throw new Error("Transfer ownership of every workspace before deleting your account.");
     }
-    const { getStorage } = await import("@/storage");
-    await getStorage().deletePrefix(org.id);
-    await db.delete(organizations).where(eq(organizations.id, org.id));
   }
+  const { cancelStripeSubscription } = await import("@/billing/stripe");
+  for (const org of owned) {
+    await cancelStripeSubscription(org.id);
+  }
+  const { getStorage } = await import("@/storage");
+  const storage = getStorage();
+  for (const org of owned) {
+    await storage.deletePrefix(org.id);
+  }
+  await db.transaction(async (tx) => {
+    for (const org of owned) {
+      await tx.delete(organizations).where(eq(organizations.id, org.id));
+    }
+    await tx.delete(users).where(eq(users.id, ctx.userId));
+  });
   await writeAudit({ action: "account.deleted", actorUserId: ctx.userId });
-  await db.delete(users).where(eq(users.id, ctx.userId));
   await auth.api.signOut({ headers: await headers() });
   redirect("/login");
 }

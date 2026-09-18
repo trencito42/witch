@@ -35,11 +35,8 @@ export async function computeSiteMetrics(
       ),
     );
 
-  const [incidentStats] = await db
-    .select({
-      detected: count(),
-      resolved: sql<number>`sum(case when ${incidents.status} = 'RESOLVED' and ${incidents.resolvedAt} is not null and ${incidents.resolvedAt} >= ${from} and ${incidents.resolvedAt} <= ${to} then 1 else 0 end)`,
-    })
+  const [detectedStats] = await db
+    .select({ value: count() })
     .from(incidents)
     .where(
       and(
@@ -47,6 +44,17 @@ export async function computeSiteMetrics(
         eq(incidents.siteId, siteId),
         gte(incidents.firstDetectedAt, from),
         lte(incidents.firstDetectedAt, to),
+      ),
+    );
+  const [resolvedStats] = await db
+    .select({ value: count() })
+    .from(incidents)
+    .where(
+      and(
+        eq(incidents.organizationId, organizationId),
+        eq(incidents.siteId, siteId),
+        gte(incidents.resolvedAt, from),
+        lte(incidents.resolvedAt, to),
       ),
     );
 
@@ -59,8 +67,34 @@ export async function computeSiteMetrics(
     failed: Math.max(0, total - successful),
     uptime: Number(uptime.toFixed(3)),
     averageResponseMs: Number(checkStats?.avgResponse ?? 0),
-    incidentsDetected: Number(incidentStats?.detected ?? 0),
-    incidentsResolved: Number(incidentStats?.resolved ?? 0),
+    incidentsDetected: Number(detectedStats?.value ?? 0),
+    incidentsResolved: Number(resolvedStats?.value ?? 0),
+  };
+}
+
+export async function computeOrgHttpMetrics(organizationId: string, from: Date, to: Date) {
+  const [checkStats] = await db
+    .select({
+      total: count(),
+      successful: sql<number>`sum(case when ${monitorChecks.success} = 1 then 1 else 0 end)`,
+      avgResponse: avg(monitorChecks.durationMs),
+    })
+    .from(monitorChecks)
+    .innerJoin(monitors, eq(monitors.id, monitorChecks.monitorId))
+    .where(
+      and(
+        eq(monitorChecks.organizationId, organizationId),
+        eq(monitors.type, "HTTP"),
+        gte(monitorChecks.createdAt, from),
+        lte(monitorChecks.createdAt, to),
+      ),
+    );
+  const total = Number(checkStats?.total ?? 0);
+  const successful = Number(checkStats?.successful ?? 0);
+  const uptime = total === 0 ? 100 : (successful / total) * 100;
+  return {
+    uptime: Number(uptime.toFixed(3)),
+    averageResponseMs: Number(checkStats?.avgResponse ?? 0),
   };
 }
 

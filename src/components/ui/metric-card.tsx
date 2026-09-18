@@ -32,12 +32,12 @@ export function MetricCard({
       <div className="text-[12px] font-medium tracking-wide text-[var(--text-muted)] uppercase mb-2">
         {label}
       </div>
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
         <div className="text-2xl sm:text-3xl font-medium tracking-tight text-[var(--text)]">
           {value}
         </div>
         {secondary && (
-          <div className="text-[12px] text-[var(--text-muted)] mono shrink-0">
+          <div className="text-[12px] text-[var(--text-muted)] mono">
             {secondary}
           </div>
         )}

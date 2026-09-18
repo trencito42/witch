@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { and, count, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { incidents, monitorChecks, sites } from "@/db/schema";
+import { sites } from "@/db/schema";
 import { requireOrgContext } from "@/server/tenancy";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui";
 import { AddSiteButton } from "@/components/add-site-dialog";
 import { Globe, ChevronRight, Clock, Search } from "lucide-react";
+import { loadSiteListStats } from "@/features/sites/stats";
 
 export default async function SitesPage({
   searchParams,
@@ -39,6 +40,11 @@ export default async function SitesPage({
     if (filter === "paused") return site.status === "PAUSED";
     return true;
   });
+
+  const { openBySite, lastBySite } = await loadSiteListStats(
+    ctx.organizationId,
+    filtered.map((site) => site.id),
+  );
 
   return (
     <div className="space-y-6 animate-spectral-fade">
@@ -105,7 +111,12 @@ export default async function SitesPage({
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
                     {filtered.map((site) => (
-                      <SiteTableRow key={site.id} site={site} organizationId={ctx.organizationId} />
+                      <SiteTableRow
+                        key={site.id}
+                        site={site}
+                        openIncidents={openBySite.get(site.id) ?? 0}
+                        lastDurationMs={lastBySite.get(site.id)?.durationMs ?? null}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -114,7 +125,12 @@ export default async function SitesPage({
               {/* MOBILE CARDS (below md) */}
               <div className="md:hidden space-y-3">
                 {filtered.map((site) => (
-                  <SiteMobileCard key={site.id} site={site} organizationId={ctx.organizationId} />
+                  <SiteMobileCard
+                    key={site.id}
+                    site={site}
+                    openIncidents={openBySite.get(site.id) ?? 0}
+                    lastDurationMs={lastBySite.get(site.id)?.durationMs ?? null}
+                  />
                 ))}
               </div>
             </>

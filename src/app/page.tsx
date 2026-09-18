@@ -76,12 +76,12 @@ const plans = [
     name: "Free",
     price: "$0",
     period: "forever",
-    description: "Essential HTTP and TLS telemetry for personal projects.",
+    description: "HTTP monitoring for one public site.",
     features: [
       "1 site under watch",
       "HTTP, TLS & latency checks",
       "30-minute check intervals",
-      "Email incident alerts",
+      "7-day check history",
       "Public status page",
     ],
     cta: "Start free",
@@ -96,44 +96,45 @@ const plans = [
       "5 sites under watch",
       "Headless Chromium browser checks",
       "Desktop & mobile visual baselines",
-      "10-minute check intervals",
+      "5-minute HTTP intervals",
       "DOM element & CTA assertions",
-      "Monthly PDF client reports",
+      "Email and Discord alerts",
+      "Monthly client reports",
     ],
-    cta: "Start 14-day trial",
+    cta: "Get started",
     highlight: false,
   },
   {
     name: "Agency",
     price: "$24",
     period: "per month",
-    description: "Complete digital observatory for client portfolios and engineering teams.",
+    description: "Monitoring for client portfolios and small teams.",
     features: [
       "25 sites under watch",
-      "5-minute check intervals",
-      "Automated visual diffing & noise masks",
-      "Team collaboration & role controls",
-      "Discord, Slack & webhook dispatch",
-      "White-label client monthly reports",
+      "5-minute HTTP intervals",
+      "Visual diffs with ignore masks",
+      "Team roles and invitations",
+      "Discord webhook alerts",
+      "Monthly reports",
       "90-day telemetry retention",
     ],
-    cta: "Start 14-day trial",
+    cta: "Get started",
     highlight: true,
   },
   {
     name: "Agency Pro",
     price: "$49",
     period: "per month",
-    description: "High-frequency surveillance and extended history for large agencies.",
+    description: "Higher site limits, API keys, and longer history.",
     features: [
       "75 sites under watch",
-      "1-minute priority check intervals",
-      "Full API access & automated provisioning",
+      "5-minute checks with priority jitter",
+      "API keys for automation",
       "180-day telemetry history",
-      "Custom HTTP headers & auth cookies",
-      "Priority triage & incident support",
+      "Advanced reporting",
+      "Up to 25 workspace members",
     ],
-    cta: "Start 14-day trial",
+    cta: "Get started",
     highlight: false,
   },
 ];
@@ -145,7 +146,7 @@ const faqs = [
   },
   {
     q: "Will Witch checks overload or degrade my client websites?",
-    a: "No. Checks are carefully scheduled, rate-limited, and jittered across edge nodes. Browser sessions respect caching headers and simulate realistic user visits without flooding server resources.",
+    a: "Checks are scheduled with jitter and concurrency limits. Browser sessions load a single page at a time per job and abort oversized or excessive resource fetches.",
   },
   {
     q: "Can I mask dynamic elements like rotating banners or timestamps?",
@@ -194,7 +195,7 @@ export default function HomePage() {
           <div className="mt-8 flex flex-col sm:flex-row items-center gap-3.5">
             <Link
               href="/signup"
-              className="btn-primary w-full sm:w-auto inline-flex h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-6 text-[13px] font-semibold tracking-wide text-[#081008] shadow-[0_0_24px_rgba(187,242,176,0.22)] transition-all hover:bg-[var(--accent)]/90 active:scale-[0.98]"
+              className="w-full sm:w-auto inline-flex h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-6 text-[13px] font-semibold tracking-wide text-[var(--accent-foreground)] shadow-[0_0_24px_rgba(187,242,176,0.22)] transition-all hover:bg-[var(--accent)]/90 active:scale-[0.98]"
             >
               <span>Start free monitoring</span>
               <ArrowRight className="w-4 h-4 ml-2" />
@@ -380,8 +381,8 @@ export default function HomePage() {
               The 5-Layer Observatory
             </h2>
             <p className="mt-2 text-[14px] text-[var(--text-muted)] leading-relaxed">
-              Witch combines traditional edge network telemetry with real headless browser
-              rendering to ensure the full stack actually works for users.
+              Layer 1 (HTTP) runs on every plan. Browser rendering, visual diffs, element
+              assertions, and AI analysis require Freelancer or above.
             </p>
           </div>
 
@@ -600,7 +601,7 @@ export default function HomePage() {
                     href="/signup"
                     className={`w-full inline-flex h-10 items-center justify-center rounded-lg text-[12px] font-medium tracking-wide transition-all ${
                       plan.highlight
-                        ? "btn-primary bg-[var(--accent)] text-[#081008] hover:bg-[var(--accent)]/90 shadow-md font-semibold"
+                        ? "bg-[var(--accent)] text-[var(--accent-foreground)] hover:bg-[var(--accent)]/90 shadow-md font-semibold"
                         : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--surface-2)]/80"
                     }`}
                   >
@@ -652,7 +653,7 @@ export default function HomePage() {
               <div className="pt-2">
                 <Link
                   href="/signup"
-                  className="btn-primary inline-flex h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-7 text-[13px] font-semibold tracking-wide text-[#081008] shadow-[0_0_24px_rgba(187,242,176,0.25)] transition-all hover:bg-[var(--accent)]/90"
+                  className="inline-flex h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-7 text-[13px] font-semibold tracking-wide text-[var(--accent-foreground)] shadow-[0_0_24px_rgba(187,242,176,0.25)] transition-all hover:bg-[var(--accent)]/90"
                 >
                   <span>Initialize observatory now</span>
                   <ArrowRight className="w-4 h-4 ml-2" />

@@ -30,7 +30,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const variantStyles = {
       primary:
-        "btn-primary bg-[var(--accent)] text-[#081008] font-semibold hover:bg-[var(--accent-strong)] active:brightness-95 shadow-[0_1px_12px_var(--accent-glow)] border border-transparent",
+        "bg-[var(--accent)] text-[var(--accent-foreground)] font-semibold hover:bg-[var(--accent-strong)] active:brightness-95 shadow-[0_1px_12px_var(--accent-glow)] border border-transparent",
       secondary:
         "bg-[var(--bg-card)] text-[var(--text)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-active)] border border-[var(--border)] hover:border-[var(--border-strong)] shadow-xs",
       ghost:
@@ -51,7 +51,6 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
-        data-variant={variant}
         disabled={disabled || loading}
         className={cn(
           "inline-flex items-center justify-center font-medium transition-all duration-150 select-none cursor-pointer",

@@ -11,7 +11,8 @@ import {
   MetricCard,
   HealthBeacon,
 } from "@/components/ui";
-import { computeSiteMetrics } from "@/features/reports/service";
+import { computeOrgHttpMetrics } from "@/features/reports/service";
+import { loadSiteListStats } from "@/features/sites/stats";
 import {
   Globe,
   Plus,
@@ -71,48 +72,16 @@ export default async function OverviewPage() {
 
   let uptime = 100;
   let avgLatency = 0;
-  if (orgSites[0]) {
-    const metrics = await computeSiteMetrics(
-      ctx.organizationId,
-      orgSites[0].id,
-      thirty,
-      new Date(),
-    );
+  if (orgSites.length) {
+    const metrics = await computeOrgHttpMetrics(ctx.organizationId, thirty, new Date());
     uptime = metrics.uptime;
     avgLatency = metrics.averageResponseMs;
   }
 
-  // Fetch last checks for each site
-  const siteChecks = await Promise.all(
-    orgSites.map(async (site) => {
-      const [lastCheck] = await db
-        .select()
-        .from(monitorChecks)
-        .where(eq(monitorChecks.siteId, site.id))
-        .orderBy(desc(monitorChecks.createdAt))
-        .limit(1);
-
-      const [open] = await db
-        .select({ value: count() })
-        .from(incidents)
-        .where(
-          and(
-            eq(incidents.siteId, site.id),
-            eq(incidents.organizationId, ctx.organizationId),
-            eq(incidents.status, "OPEN"),
-          ),
-        );
-
-      return {
-        siteId: site.id,
-        lastDurationMs: lastCheck?.durationMs,
-        lastCheckedAt: lastCheck?.createdAt ?? site.lastCheckedAt,
-        openIncidents: Number(open?.value ?? 0),
-      };
-    }),
+  const { openBySite, lastBySite } = await loadSiteListStats(
+    ctx.organizationId,
+    orgSites.map((site) => site.id),
   );
-
-  const siteDataMap = new Map(siteChecks.map((s) => [s.siteId, s]));
 
   const overallStatus =
     attention.length > 0
@@ -182,7 +151,7 @@ export default async function OverviewPage() {
       ) : (
         <>
           {/* OBSERVATORY METRICS GRID */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
             <MetricCard
               label="Sites Monitored"
               value={orgSites.length}
@@ -247,7 +216,8 @@ export default async function OverviewPage() {
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {orgSites.map((site) => {
-                const checkData = siteDataMap.get(site.id);
+                const last = lastBySite.get(site.id);
+                const openIncidents = openBySite.get(site.id) ?? 0;
                 return (
                   <Link
                     key={site.id}
@@ -286,21 +256,21 @@ export default async function OverviewPage() {
                       <div className="flex items-center gap-1.5 mono">
                         <Clock className="h-3.5 w-3.5 text-[var(--text-faint)]" />
                         <span>
-                          {checkData?.lastCheckedAt
-                            ? new Date(checkData.lastCheckedAt).toLocaleTimeString([], {
+                          {(last?.createdAt ?? site.lastCheckedAt)
+                            ? new Date(last?.createdAt ?? site.lastCheckedAt!).toLocaleTimeString([], {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })
                             : "—"}
                         </span>
-                        {checkData?.lastDurationMs != null && (
-                          <span>· {checkData.lastDurationMs}ms</span>
+                        {last?.durationMs != null && (
+                          <span>· {last.durationMs}ms</span>
                         )}
                       </div>
 
-                      {checkData?.openIncidents ? (
+                      {openIncidents ? (
                         <span className="text-[var(--critical)] text-[11px] font-medium">
-                          {checkData.openIncidents} open
+                          {openIncidents} open
                         </span>
                       ) : (
                         <span className="text-[var(--healthy)] text-[11px]">

@@ -6,7 +6,7 @@ async function main() {
   try {
     process.loadEnvFile?.(".env");
   } catch {
-    /* optional: unquoted values in .env can fail this */
+    /* optional */
   }
 
   const url = process.env.DATABASE_URL;
@@ -15,12 +15,54 @@ async function main() {
   }
 
   const connection = await mysql.createConnection(url);
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS \`schema_migrations\` (
+      \`id\` varchar(255) NOT NULL PRIMARY KEY,
+      \`applied_at\` datetime(3) NOT NULL
+    )
+  `);
+  const [appliedRows] = await connection.query("SELECT `id` FROM `schema_migrations`");
+  const applied = new Set(
+    (Array.isArray(appliedRows) ? appliedRows : []).map((row) => String((row as { id: string }).id)),
+  );
+
+  async function tableExists(name: string) {
+    const [rows] = await connection.query("SHOW TABLES LIKE ?", [name]);
+    return Array.isArray(rows) && rows.length > 0;
+  }
+
+  async function columnExists(table: string, column: string) {
+    const [rows] = await connection.query(
+      `SELECT 1 FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+      [table, column],
+    );
+    return Array.isArray(rows) && rows.length > 0;
+  }
+
+  async function markApplied(id: string) {
+    if (applied.has(id)) return;
+    await connection.query("INSERT INTO `schema_migrations` (`id`, `applied_at`) VALUES (?, ?)", [
+      id,
+      new Date(),
+    ]);
+    applied.add(id);
+    console.log(`recorded existing ${id}`);
+  }
+
+  if (await tableExists("user")) await markApplied("0000_init.sql");
+  if (await columnExists("visual_diff", "metadata")) await markApplied("0001_monitoring_hardening.sql");
+
   const dir = path.resolve("drizzle");
   const files = (await readdir(dir))
     .filter((file) => file.endsWith(".sql"))
     .sort();
 
   for (const file of files) {
+    if (applied.has(file)) {
+      console.log(`skip ${file}`);
+      continue;
+    }
     const sql = await readFile(path.join(dir, file), "utf8");
     const statements = sql
       .split(/;\s*\n/)
@@ -29,6 +71,10 @@ async function main() {
     for (const statement of statements) {
       await connection.query(statement);
     }
+    await connection.query("INSERT INTO `schema_migrations` (`id`, `applied_at`) VALUES (?, ?)", [
+      file,
+      new Date(),
+    ]);
     console.log(`applied ${file}`);
   }
 

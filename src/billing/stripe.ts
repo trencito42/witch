@@ -107,6 +107,18 @@ export async function createPortalSession(organizationId: string) {
   return portal.url;
 }
 
+export async function cancelStripeSubscription(organizationId: string) {
+  const stripe = stripeClient();
+  const [sub] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.organizationId, organizationId))
+    .limit(1);
+  if (!stripe || !sub?.stripeSubscriptionId) return;
+  if (["canceled", "incomplete_expired"].includes(sub.status)) return;
+  await stripe.subscriptions.cancel(sub.stripeSubscriptionId);
+}
+
 export async function handleStripeWebhook(rawBody: string, signature: string) {
   const env = getEnv();
   const stripe = stripeClient();
@@ -119,22 +131,30 @@ export async function handleStripeWebhook(rawBody: string, signature: string) {
     env.STRIPE_WEBHOOK_SECRET,
   );
 
-  const [existing] = await db
-    .select()
-    .from(billingEvents)
-    .where(eq(billingEvents.stripeEventId, event.id))
-    .limit(1);
-  if (existing) return { ok: true, duplicate: true };
+  const eventRowId = newId();
+  try {
+    await db.insert(billingEvents).values({
+      id: eventRowId,
+      stripeEventId: event.id,
+      type: event.type,
+      processedAt: new Date(),
+      payloadSummary: { type: event.type, id: event.id, created: event.created },
+    });
+  } catch (error) {
+    const code = (error as { code?: string; errno?: number }).code;
+    const errno = (error as { errno?: number }).errno;
+    if (code === "ER_DUP_ENTRY" || errno === 1062) {
+      return { ok: true, duplicate: true };
+    }
+    throw error;
+  }
 
-  await applyStripeEvent(event);
-
-  await db.insert(billingEvents).values({
-    id: newId(),
-    stripeEventId: event.id,
-    type: event.type,
-    processedAt: new Date(),
-    payloadSummary: { type: event.type, id: event.id },
-  });
+  try {
+    await applyStripeEvent(event);
+  } catch (error) {
+    await db.delete(billingEvents).where(eq(billingEvents.id, eventRowId));
+    throw error;
+  }
   return { ok: true };
 }
 
@@ -152,6 +172,22 @@ async function applyStripeEvent(event: Stripe.Event) {
       null;
     if (!organizationId) {
       logger.warn({ type: event.type }, "stripe event missing organization");
+      return;
+    }
+
+    const [existingSub] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.organizationId, organizationId))
+      .limit(1);
+    if (
+      existingSub?.lastStripeEventCreated &&
+      event.created < existingSub.lastStripeEventCreated
+    ) {
+      logger.warn(
+        { type: event.type, created: event.created, latest: existingSub.lastStripeEventCreated },
+        "skipping stale stripe event",
+      );
       return;
     }
 
@@ -222,6 +258,7 @@ async function applyStripeEvent(event: Stripe.Event) {
         currentPeriodEnd,
         currentPeriodStart,
         cancelAtPeriodEnd,
+        lastStripeEventCreated: event.created,
         updatedAt: new Date(),
       })
       .where(eq(subscriptions.organizationId, organizationId));

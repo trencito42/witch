@@ -183,6 +183,7 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
     .where(eq(monitors.id, monitor.id));
 
   let visualChanged = false;
+  let visualDiffId: string | null = null;
   let differenceRatio: number | undefined;
   let filteredDifferenceRatio: number | undefined;
   let boundingBox: { x: number; y: number; width: number; height: number } | null = null;
@@ -282,6 +283,7 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
           createdAt: new Date(),
         });
         visualChanged = diff.aboveThreshold;
+        if (diff.aboveThreshold) visualDiffId = diffId;
         differenceRatio = diff.differenceRatio;
         filteredDifferenceRatio = diff.filteredDifferenceRatio;
         boundingBox = diff.boundingBox;
@@ -330,6 +332,7 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
     differenceRatio,
     filteredDifferenceRatio,
     boundingBox,
+    visualDiffId,
     missingSelector:
       monitor.type === "ELEMENT" && result.elementFound === false
         ? monitor.selector ?? "text"

@@ -41,11 +41,12 @@ export async function processAiAnalysis(incidentId: string, organizationId: stri
     boundingBox?: { x: number; y: number; width: number; height: number };
     differenceRatio?: number;
     filteredDifferenceRatio?: number;
+    visualDiffId?: string;
   };
   const evidence = Array.isArray(meta.evidence) ? meta.evidence : [];
   const images =
     incident.category === "VISUAL"
-      ? await visualEvidenceImages(incident.siteId, organizationId, incident.monitorId)
+      ? await visualEvidenceImages(incident.siteId, organizationId, incident.monitorId, meta.visualDiffId)
       : undefined;
   const result = await analyzeIncidentSafe({
     siteUrl: site?.url ?? "",
@@ -76,23 +77,40 @@ export async function processAiAnalysis(incidentId: string, organizationId: stri
   });
 }
 
-async function visualEvidenceImages(siteId: string, organizationId: string, monitorId: string | null) {
+async function visualEvidenceImages(
+  siteId: string,
+  organizationId: string,
+  monitorId: string | null,
+  visualDiffId?: string | null,
+) {
   const { visualDiffs, visualSnapshots } = await import("@/db/schema");
   const { desc } = await import("drizzle-orm");
-  const [diff] = await db
-    .select()
-    .from(visualDiffs)
-    .where(
-      monitorId
-        ? and(
-            eq(visualDiffs.siteId, siteId),
+  const [diff] = visualDiffId
+    ? await db
+        .select()
+        .from(visualDiffs)
+        .where(
+          and(
+            eq(visualDiffs.id, visualDiffId),
             eq(visualDiffs.organizationId, organizationId),
-            eq(visualDiffs.monitorId, monitorId),
-          )
-        : and(eq(visualDiffs.siteId, siteId), eq(visualDiffs.organizationId, organizationId)),
-    )
-    .orderBy(desc(visualDiffs.createdAt))
-    .limit(1);
+            eq(visualDiffs.siteId, siteId),
+          ),
+        )
+        .limit(1)
+    : await db
+        .select()
+        .from(visualDiffs)
+        .where(
+          monitorId
+            ? and(
+                eq(visualDiffs.siteId, siteId),
+                eq(visualDiffs.organizationId, organizationId),
+                eq(visualDiffs.monitorId, monitorId),
+              )
+            : and(eq(visualDiffs.siteId, siteId), eq(visualDiffs.organizationId, organizationId)),
+        )
+        .orderBy(desc(visualDiffs.createdAt))
+        .limit(1);
   if (!diff) return undefined;
   const ids = [diff.baselineSnapshotId, diff.currentSnapshotId];
   const snaps = await db.select().from(visualSnapshots).where(inArray(visualSnapshots.id, ids));

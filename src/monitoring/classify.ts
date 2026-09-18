@@ -95,6 +95,7 @@ export function classifyBrowser(input: {
   differenceRatio?: number;
   filteredDifferenceRatio?: number;
   boundingBox?: { x: number; y: number; width: number; height: number } | null;
+  visualDiffId?: string | null;
   missingSelector?: string | null;
   missingText?: string | null;
   domSignificant?: boolean;
@@ -163,6 +164,7 @@ export function classifyBrowser(input: {
         boundingBox: input.boundingBox ?? null,
         differenceRatio: input.differenceRatio,
         filteredDifferenceRatio: input.filteredDifferenceRatio,
+        visualDiffId: input.visualDiffId ?? null,
       },
     });
   }

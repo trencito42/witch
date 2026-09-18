@@ -166,6 +166,7 @@ export const subscriptions = mysqlTable(
     currentPeriodEnd: datetimeOptional("current_period_end"),
     cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
     trialEndsAt: datetimeOptional("trial_ends_at"),
+    lastStripeEventCreated: int("last_stripe_event_created"),
     createdAt: datetimeRequired("created_at"),
     updatedAt: datetimeRequired("updated_at"),
   },
