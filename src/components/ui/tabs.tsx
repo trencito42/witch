@@ -26,7 +26,7 @@ export function Tabs({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 border-b border-[var(--border)] overflow-x-auto no-scrollbar max-w-full",
+        "-mx-4 px-4 sm:mx-0 sm:px-0 flex items-center gap-1 sm:gap-2 border-b border-[var(--border)] overflow-x-auto no-scrollbar max-w-[100vw] sm:max-w-full snap-x snap-mandatory",
         className,
       )}
     >
@@ -35,7 +35,9 @@ export function Tabs({
 
         const content = (
           <>
-            {tab.icon && <span className="shrink-0 text-current">{tab.icon}</span>}
+            {tab.icon && (
+              <span className="hidden sm:inline-flex shrink-0 text-current">{tab.icon}</span>
+            )}
             <span>{tab.label}</span>
             {tab.count !== undefined && (
               <span
@@ -56,7 +58,7 @@ export function Tabs({
         );
 
         const classes = cn(
-          "relative flex items-center gap-2 px-3 pb-3 pt-1 text-[13px] font-medium whitespace-nowrap transition-colors select-none",
+          "relative flex shrink-0 snap-start items-center gap-2 px-3 pb-3 pt-1 text-[14px] md:text-[13px] font-medium whitespace-nowrap transition-colors select-none",
           active
             ? "text-[var(--text)] font-semibold"
             : "text-[var(--text-muted)] hover:text-[var(--text)]",

@@ -10,7 +10,6 @@ import {
   type AuthState,
 } from "@/app/auth-actions";
 import { Button, Input, Label } from "@/components/ui";
-import { LogoMark } from "@/components/logo";
 import { AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 
 const initial: AuthState = {};
@@ -46,16 +45,13 @@ export function AuthForm({
 
           {/* Header */}
           <div className="mb-7 text-center">
-            <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] mb-4 text-[var(--accent)] shadow-[0_0_15px_rgba(187,242,176,0.1)]">
-              <LogoMark size={20} />
-            </div>
             <h1 className="text-[20px] font-semibold tracking-tight text-[var(--text)]">
               {mode === "login" && "Sign in to Witch"}
               {mode === "signup" && "Create your observatory"}
               {mode === "forgot" && "Reset your password"}
               {mode === "reset" && "Choose a new password"}
             </h1>
-            <p className="mt-1.5 text-[13px] text-[var(--text-muted)]">
+            <p className="mt-1.5 text-[14px] text-[var(--text-muted)]">
               {mode === "login" && "Continuous, quiet website monitoring beyond uptime."}
               {mode === "signup" && "Start watching what visitors actually see in minutes."}
               {mode === "forgot" && "We'll send a secure reset link to your email."}
@@ -69,7 +65,7 @@ export function AuthForm({
 
             {mode === "signup" && (
               <div className="space-y-1.5">
-                <Label htmlFor="name" className="text-[12px] font-medium text-[var(--text-muted)]">
+                <Label htmlFor="name" className="text-[13px] font-medium text-[var(--text-muted)]">
                   Your name
                 </Label>
                 <Input
@@ -78,14 +74,14 @@ export function AuthForm({
                   required
                   autoComplete="name"
                   placeholder="e.g. Alex Morgan"
-                  className="h-10 text-[14px] bg-[var(--surface-0)]/60 border-[var(--border)] focus:border-[var(--accent)]/60"
+                  className="bg-[var(--surface-0)]/60 border-[var(--border)] focus:border-[var(--accent)]/60"
                 />
               </div>
             )}
 
             {mode !== "reset" && (
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-[12px] font-medium text-[var(--text-muted)]">
+                <Label htmlFor="email" className="text-[13px] font-medium text-[var(--text-muted)]">
                   Email address
                 </Label>
                 <Input
@@ -95,7 +91,7 @@ export function AuthForm({
                   required
                   autoComplete="email"
                   placeholder="you@agency.com"
-                  className="h-10 text-[14px] bg-[var(--surface-0)]/60 border-[var(--border)] focus:border-[var(--accent)]/60"
+                  className="bg-[var(--surface-0)]/60 border-[var(--border)] focus:border-[var(--accent)]/60"
                 />
               </div>
             )}
@@ -103,7 +99,7 @@ export function AuthForm({
             {mode !== "forgot" && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-[12px] font-medium text-[var(--text-muted)]">
+                  <Label htmlFor="password" className="text-[13px] font-medium text-[var(--text-muted)]">
                     Password
                   </Label>
                   {mode === "login" && (
@@ -123,7 +119,7 @@ export function AuthForm({
                   minLength={10}
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                   placeholder="••••••••••••"
-                  className="h-10 text-[14px] bg-[var(--surface-0)]/60 border-[var(--border)] focus:border-[var(--accent)]/60"
+                  className="bg-[var(--surface-0)]/60 border-[var(--border)] focus:border-[var(--accent)]/60"
                 />
                 {mode === "signup" && (
                   <p className="text-[11px] text-[var(--text-faint)]">
@@ -151,7 +147,7 @@ export function AuthForm({
               type="submit"
               variant="primary"
               disabled={pending}
-              className="w-full h-10 mt-2 font-semibold text-[13px] flex items-center justify-center gap-2"
+              className="h-10 mt-2 font-semibold w-full"
             >
               {pending ? (
                 "Please wait…"

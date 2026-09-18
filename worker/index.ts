@@ -1,6 +1,6 @@
 import { and, eq, inArray, lte, or } from "drizzle-orm";
 import { db } from "@/db";
-import { jobs, monitorChecks, systemHeartbeats, visualDiffs, visualSnapshots } from "@/db/schema";
+import { jobs, monitorChecks, systemHeartbeats, visualDiffs, visualSnapshots, incidents } from "@/db/schema";
 import { claimNextJob, completeJob, failJob, recoverStaleJobs } from "@/server/jobs";
 import { processMonitor } from "@/features/monitors/runner";
 import { processAiAnalysis, processEmailAlert } from "@/features/alerts/service";
@@ -8,7 +8,7 @@ import { generateMonthlyReports, sendReportEmail } from "@/features/reports/serv
 import { getStorage } from "@/storage";
 import { childLogger, logger } from "@/lib/logger";
 import { closeBrowser } from "@/monitoring/browser";
-import { getPlanLimits } from "@/lib/plans";
+import { entitledPlanId, getPlanLimits } from "@/lib/plans";
 import { subscriptions } from "@/db/schema";
 import { sites } from "@/db/schema";
 import { getEnv } from "@/lib/env";
@@ -71,8 +71,22 @@ async function cleanupRetention() {
       .from(subscriptions)
       .where(eq(subscriptions.organizationId, site.organizationId))
       .limit(1);
-    const days = getPlanLimits(sub?.planId ?? "free").historyDays;
+    const days = getPlanLimits(entitledPlanId(sub?.planId, sub?.status)).historyDays;
     const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const activeIncidents = await db
+      .select({ metadata: incidents.metadata })
+      .from(incidents)
+      .where(
+        and(
+          eq(incidents.siteId, site.id),
+          inArray(incidents.status, ["OPEN", "ACKNOWLEDGED"]),
+        ),
+      );
+    const keepDiffIds = new Set(
+      activeIncidents
+        .map((row) => (row.metadata as { visualDiffId?: string } | null)?.visualDiffId)
+        .filter((id): id is string => Boolean(id)),
+    );
     const snapshots = await db
       .select()
       .from(visualSnapshots)
@@ -101,11 +115,18 @@ async function cleanupRetention() {
         ),
       );
     const storage = getStorage();
+    const keepSnapshotIds = new Set<string>();
     for (const diff of diffs) {
+      if (keepDiffIds.has(diff.id)) {
+        keepSnapshotIds.add(diff.baselineSnapshotId);
+        keepSnapshotIds.add(diff.currentSnapshotId);
+        continue;
+      }
       if (diff.diffStorageKey) await storage.delete(diff.diffStorageKey);
       await db.delete(visualDiffs).where(eq(visualDiffs.id, diff.id));
     }
     for (const snapshot of snapshots) {
+      if (keepSnapshotIds.has(snapshot.id)) continue;
       await storage.delete(snapshot.storageKey);
       await db.delete(visualSnapshots).where(eq(visualSnapshots.id, snapshot.id));
     }
@@ -138,8 +159,15 @@ export async function runWorkerLoop() {
   const inflight = new Set<Promise<void>>();
   let browserInflight = 0;
 
+  const usesBrowser = (job: typeof jobs.$inferSelect) => {
+    if (job.type === "BROWSER_CHECK") return true;
+    if (job.type !== "CONFIRM_CHECK") return false;
+    const payload = (job.payload ?? {}) as Record<string, unknown>;
+    return payload.reason !== "http-confirm";
+  };
+
   const runOne = async (job: typeof jobs.$inferSelect) => {
-    const isBrowser = job.type === "BROWSER_CHECK";
+    const isBrowser = usesBrowser(job);
     if (isBrowser) browserInflight += 1;
     try {
       await handleJob(job);
@@ -162,8 +190,10 @@ export async function runWorkerLoop() {
       await heartbeat("worker", { inflight: inflight.size, browserInflight });
       await recoverStaleJobs();
       while (running && inflight.size < concurrency) {
-        const excludeBrowser = browserInflight >= browserLimit ? (["BROWSER_CHECK"] as const) : undefined;
-        const job = await claimNextJob(undefined, excludeBrowser ? { excludeTypes: [...excludeBrowser] } : undefined);
+        const job = await claimNextJob(
+          undefined,
+          browserInflight >= browserLimit ? { excludeBrowserJobs: true } : undefined,
+        );
         if (!job) break;
         const task = runOne(job).finally(() => inflight.delete(task));
         inflight.add(task);

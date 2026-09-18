@@ -84,7 +84,7 @@ export default async function IncidentsPage({
                 name="q"
                 defaultValue={params.q}
                 placeholder="Search incidents or sites…"
-                className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] pl-8 pr-3 text-[13px] text-[var(--text)] transition-colors focus:border-[var(--border-focus)] focus:bg-[var(--bg-card)] focus:outline-none placeholder:text-[var(--text-faint)]"
+                className="h-11 w-full rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] pl-8 pr-3 text-[16px] text-[var(--text)] transition-colors focus:border-[var(--border-focus)] focus:bg-[var(--bg-card)] focus:outline-none placeholder:text-[var(--text-faint)] md:h-9 md:text-[13px]"
               />
               {statusFilter !== "ALL" && <input type="hidden" name="status" value={statusFilter.toLowerCase()} />}
             </form>
@@ -168,17 +168,17 @@ export default async function IncidentsPage({
                   <Link
                     key={incident.id}
                     href={`/incidents/${incident.id}`}
-                    className="block p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] active:bg-[var(--bg-hover)] transition-colors"
+                    className="block p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] active:bg-[var(--bg-hover)] transition-colors min-w-0 overflow-hidden"
                   >
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <StatusBadge status={incident.severity} />
                       <StatusBadge status={incident.status} />
                     </div>
 
-                    <h3 className="text-[14px] font-medium text-[var(--text)] mb-1">
+                    <h3 className="text-[15px] font-medium text-[var(--text)] mb-1 break-words">
                       {incident.title}
                     </h3>
-                    <p className="text-[12px] text-[var(--text-muted)] line-clamp-2 mb-3">
+                    <p className="text-[13px] text-[var(--text-muted)] line-clamp-2 mb-3">
                       {incident.summary}
                     </p>
 

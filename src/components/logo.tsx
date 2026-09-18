@@ -7,7 +7,7 @@ export function LogoMark({ className, size }: { className?: string; size?: numbe
       viewBox="0 0 40 40"
       aria-hidden
       style={size ? { width: size, height: size } : undefined}
-      className={cn("h-7 w-7 text-[var(--text)] shrink-0", className)}
+      className={cn("h-7 w-7 text-current shrink-0", className)}
     >
       <path
         fill="currentColor"
@@ -30,10 +30,16 @@ export function LogoMark({ className, size }: { className?: string; size?: numbe
   );
 }
 
-export function Wordmark({ className }: { className?: string }) {
+export function Wordmark({
+  className,
+  size = "desktop",
+}: {
+  className?: string;
+  size?: "desktop" | "mobile";
+}) {
   return (
-    <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <LogoMark className="h-[22px] w-[22px]" />
+    <span className={cn("inline-flex items-center gap-2.5 text-[var(--text)]", className)}>
+      <LogoMark className={size === "mobile" ? "h-5 w-5" : "h-[22px] w-[22px]"} />
       <span className="text-[14px] tracking-[0.04em] font-medium">Witch</span>
     </span>
   );

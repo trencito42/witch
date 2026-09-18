@@ -57,14 +57,16 @@ export default async function IncidentDetailPage({
   const failed = (incident.metadata as { failedRequests?: { url: string; status: number }[] } | null)
     ?.failedRequests;
 
-  const [diff] = incident.monitorId
+  const visualDiffId = (incident.metadata as { visualDiffId?: string } | null)?.visualDiffId;
+  const [diff] = visualDiffId
     ? await db
         .select()
         .from(visualDiffs)
         .where(
           and(
-            eq(visualDiffs.monitorId, incident.monitorId),
+            eq(visualDiffs.id, visualDiffId),
             eq(visualDiffs.organizationId, ctx.organizationId),
+            eq(visualDiffs.siteId, incident.siteId),
           ),
         )
         .limit(1)
@@ -103,17 +105,17 @@ export default async function IncidentDetailPage({
         </div>
 
         <div>
-          <h1 className="text-xl sm:text-2xl font-medium tracking-tight text-[var(--text)]">
+          <h1 className="text-xl sm:text-2xl font-medium tracking-tight text-[var(--text)] break-words">
             {incident.title}
           </h1>
           {site && (
             <Link
               href={`/sites/${site.id}`}
-              className="inline-flex items-center gap-1.5 text-[13px] text-[var(--text-muted)] hover:text-[var(--accent)] mt-1.5 transition-colors"
+              className="inline-flex items-center gap-1.5 text-[13px] text-[var(--text-muted)] hover:text-[var(--accent)] mt-1.5 transition-colors min-w-0 max-w-full"
             >
-              <Globe className="h-3.5 w-3.5" />
-              <span>{site.name}</span>
-              <span className="mono text-[11px] text-[var(--text-faint)]">({site.url})</span>
+              <Globe className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{site.name}</span>
+              <span className="mono text-[11px] text-[var(--text-faint)] truncate">({site.url})</span>
             </Link>
           )}
         </div>
@@ -123,7 +125,7 @@ export default async function IncidentDetailPage({
         </p>
 
         {/* Action Bar */}
-        <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-[var(--border)]">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2.5 pt-3 border-t border-[var(--border)] [&_form]:w-full sm:[&_form]:w-auto [&_button]:w-full sm:[&_button]:w-auto">
           {incident.status === "OPEN" && (
             <form action={actionIncident.bind(null, "ack", incident.id)}>
               <Button variant="secondary" size="sm" leadingIcon={<Check className="h-3.5 w-3.5" />}>
@@ -201,7 +203,7 @@ export default async function IncidentDetailPage({
             {evidence.map((item, i) => (
               <li key={i} className="text-[13px] text-[var(--text-muted)] flex items-start gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-[var(--warning)] mt-1.5 shrink-0" />
-                <span>{item}</span>
+                <span className="break-words min-w-0">{item}</span>
               </li>
             ))}
           </ul>
@@ -218,7 +220,7 @@ export default async function IncidentDetailPage({
               <ul className="divide-y divide-[var(--border)] text-[12px] mono">
                 {failed.slice(0, 20).map((req, i) => (
                   <li key={i} className="p-2.5 flex items-center justify-between gap-4">
-                    <span className="truncate text-[var(--text-muted)]">{req.url}</span>
+                    <span className="truncate text-[var(--text-muted)] min-w-0 break-all">{req.url}</span>
                     <span className="px-1.5 py-0.5 rounded-xs bg-[var(--critical-dim)] text-[var(--critical)] font-bold shrink-0">
                       {req.status}
                     </span>

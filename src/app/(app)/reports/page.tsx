@@ -67,6 +67,7 @@ export default async function ReportsPage() {
             const metrics = report.metrics as {
               uptime?: number;
               incidentCount?: number;
+              incidentsDetected?: number;
               averageResponseMs?: number;
             } | null;
 
@@ -108,8 +109,8 @@ export default async function ReportsPage() {
                         {metrics.uptime.toFixed(1)}% uptime
                       </span>
                     )}
-                    {metrics?.incidentCount != null && (
-                      <span>{metrics.incidentCount} incidents</span>
+                    {(metrics?.incidentsDetected ?? metrics?.incidentCount) != null && (
+                      <span>{metrics?.incidentsDetected ?? metrics?.incidentCount} incidents</span>
                     )}
                   </div>
 

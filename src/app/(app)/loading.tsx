@@ -1,6 +1,5 @@
-import { OverviewSkeleton } from "@/components/ui";
+import { PageSkeleton } from "@/components/ui";
 
 export default function Loading() {
-  return <OverviewSkeleton />;
+  return <PageSkeleton />;
 }
-

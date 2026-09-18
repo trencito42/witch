@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   monitorChecks,
@@ -219,6 +219,7 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
           eq(visualSnapshots.viewport, viewport),
         ),
       )
+      .orderBy(desc(visualSnapshots.createdAt))
       .limit(1);
     const isBaseline = !baseline && result.success;
     await db.insert(visualSnapshots).values({

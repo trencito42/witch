@@ -37,7 +37,7 @@ export function DeleteSiteButton({ siteId }: { siteId: string }) {
             setLoading(true);
             await actionDeleteSite(siteId);
           }}
-          className="flex items-center justify-end gap-3"
+          className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 [&_button]:w-full sm:[&_button]:w-auto"
         >
           <Button
             type="button"

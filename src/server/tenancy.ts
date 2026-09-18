@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { organizations, subscriptions } from "@/db/schema";
 import { ADMIN_ROLES, ORG_COOKIE, WRITE_ROLES, type OrgRole } from "@/lib/constants";
-import { getPlanLimits, type PlanLimits } from "@/lib/plans";
+import { getPlanLimits, entitledPlanId, type PlanLimits } from "@/lib/plans";
 import { requireSession } from "./session";
 import { findMembership, findOrganizationsForUser } from "./organizations";
 
@@ -37,12 +37,11 @@ export async function requireOrgContext(
 
   const cookieStore = await cookies();
   const cookieOrg = cookieStore.get(ORG_COOKIE)?.value;
-  const selectedId =
-    organizationId ??
-    cookieOrg ??
-    memberships[0]!.id;
-
-  const membership = memberships.find((item) => item.id === selectedId) ?? memberships[0]!;
+  const selectedId = organizationId ?? cookieOrg ?? memberships[0]!.id;
+  const membership =
+    memberships.find((item) => item.id === selectedId) ??
+    (organizationId ? undefined : memberships[0]);
+  if (!membership) throw new AuthorizationError();
   const memberRow = await findMembership(session.user.id, membership.id);
   if (!memberRow) throw new AuthorizationError();
 
@@ -69,7 +68,7 @@ export async function requireOrgContext(
     organizationId: org.id,
     organizationName: org.name,
     role: memberRow.role as OrgRole,
-    plan: getPlanLimits(sub?.planId ?? "free"),
+    plan: getPlanLimits(entitledPlanId(sub?.planId, sub?.status)),
     subscriptionStatus: sub?.status ?? "active",
   };
 }

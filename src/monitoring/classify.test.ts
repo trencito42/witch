@@ -79,6 +79,19 @@ describe("classifyBrowser", () => {
     });
     expect(issues.some((issue) => issue.category === "UPTIME")).toBe(true);
   });
+
+  it("attaches the exact visualDiffId that produced the visual incident", () => {
+    const issues = classifyBrowser({
+      consoleErrors: [],
+      failedRequests: [],
+      visualChanged: true,
+      differenceRatio: 0.2,
+      filteredDifferenceRatio: 0.2,
+      visualDiffId: "diff_abc",
+    });
+    const visual = issues.find((issue) => issue.category === "VISUAL");
+    expect(visual?.metadata).toMatchObject({ visualDiffId: "diff_abc" });
+  });
 });
 
 describe("incident recovery gating", () => {

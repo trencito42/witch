@@ -69,6 +69,7 @@ export default async function SitesPage({
           {/* FILTER BAR & SEARCH */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
             <SegmentedControl
+              className="w-full sm:w-auto"
               value={filter}
               items={[
                 { id: "all", label: "All", count: all.length, href: `/sites?filter=all${query ? `&q=${query}` : ""}` },
@@ -85,7 +86,7 @@ export default async function SitesPage({
                 name="q"
                 defaultValue={params.q}
                 placeholder="Filter sites or URLs…"
-                className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] pl-8 pr-3 text-[13px] text-[var(--text)] transition-colors focus:border-[var(--border-focus)] focus:bg-[var(--bg-card)] focus:outline-none placeholder:text-[var(--text-faint)]"
+                className="h-11 w-full rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] pl-8 pr-3 text-[16px] text-[var(--text)] transition-colors focus:border-[var(--border-focus)] focus:bg-[var(--bg-card)] focus:outline-none placeholder:text-[var(--text-faint)] md:h-9 md:text-[13px]"
               />
               {filter !== "all" && <input type="hidden" name="filter" value={filter} />}
             </form>
@@ -141,30 +142,15 @@ export default async function SitesPage({
   );
 }
 
-async function SiteTableRow({
+function SiteTableRow({
   site,
-  organizationId,
+  openIncidents,
+  lastDurationMs,
 }: {
   site: typeof sites.$inferSelect;
-  organizationId: string;
+  openIncidents: number;
+  lastDurationMs: number | null;
 }) {
-  const [open] = await db
-    .select({ value: count() })
-    .from(incidents)
-    .where(
-      and(
-        eq(incidents.siteId, site.id),
-        eq(incidents.organizationId, organizationId),
-        eq(incidents.status, "OPEN"),
-      ),
-    );
-  const [last] = await db
-    .select()
-    .from(monitorChecks)
-    .where(eq(monitorChecks.siteId, site.id))
-    .orderBy(desc(monitorChecks.createdAt))
-    .limit(1);
-
   return (
     <tr className="hover:bg-[var(--bg-hover)] transition-colors group">
       <td className="py-3.5 px-4">
@@ -199,15 +185,15 @@ async function SiteTableRow({
                 })
               : "—"}
           </span>
-          {last?.durationMs != null && (
-            <span className="text-[var(--text-faint)]">· {last.durationMs}ms</span>
+          {lastDurationMs != null && (
+            <span className="text-[var(--text-faint)]">· {lastDurationMs}ms</span>
           )}
         </div>
       </td>
       <td className="py-3.5 px-4">
-        {Number(open?.value ?? 0) > 0 ? (
+        {openIncidents > 0 ? (
           <span className="text-[var(--critical)] text-[12px] font-medium">
-            {Number(open?.value ?? 0)} active
+            {openIncidents} active
           </span>
         ) : (
           <span className="text-[var(--text-faint)] text-[12px]">None</span>
@@ -226,57 +212,39 @@ async function SiteTableRow({
   );
 }
 
-async function SiteMobileCard({
+function SiteMobileCard({
   site,
-  organizationId,
+  openIncidents,
+  lastDurationMs,
 }: {
   site: typeof sites.$inferSelect;
-  organizationId: string;
+  openIncidents: number;
+  lastDurationMs: number | null;
 }) {
-  const [open] = await db
-    .select({ value: count() })
-    .from(incidents)
-    .where(
-      and(
-        eq(incidents.siteId, site.id),
-        eq(incidents.organizationId, organizationId),
-        eq(incidents.status, "OPEN"),
-      ),
-    );
-  const [last] = await db
-    .select()
-    .from(monitorChecks)
-    .where(eq(monitorChecks.siteId, site.id))
-    .orderBy(desc(monitorChecks.createdAt))
-    .limit(1);
-
   return (
     <Link
       href={`/sites/${site.id}`}
-      className="block p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] active:bg-[var(--bg-hover)] transition-colors"
+      className="block p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] active:bg-[var(--bg-hover)] transition-colors min-w-0 overflow-hidden"
     >
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2 min-w-0">
-          {site.faviconUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={site.faviconUrl} alt="" width={16} height={16} className="rounded-xs shrink-0" />
-          ) : (
-            <Globe className="h-4 w-4 text-[var(--text-muted)] shrink-0" />
-          )}
-          <span className="text-[14px] font-medium text-[var(--text)] truncate">
-            {site.name}
-          </span>
-        </div>
-        <StatusBadge status={site.status} />
+      <div className="flex items-center gap-2 min-w-0 mb-1.5">
+        {site.faviconUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={site.faviconUrl} alt="" width={16} height={16} className="rounded-xs shrink-0" />
+        ) : (
+          <Globe className="h-4 w-4 text-[var(--text-muted)] shrink-0" />
+        )}
+        <span className="text-[15px] font-medium text-[var(--text)] truncate">
+          {site.name}
+        </span>
       </div>
 
-      <div className="mono text-[11px] text-[var(--text-muted)] truncate mb-3">
+      <div className="mono text-[12px] text-[var(--text-muted)] truncate mb-3 min-w-0">
         {site.url}
       </div>
 
-      <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between text-[12px] text-[var(--text-muted)] mono">
-        <div>
-          {last?.durationMs != null ? `${last.durationMs}ms` : "—"} ·{" "}
+      <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between gap-2 min-w-0 text-[12px] text-[var(--text-muted)]">
+        <div className="mono truncate min-w-0">
+          {lastDurationMs != null ? `${lastDurationMs}ms` : "—"} ·{" "}
           {site.lastCheckedAt
             ? new Date(site.lastCheckedAt).toLocaleTimeString([], {
                 hour: "2-digit",
@@ -284,13 +252,16 @@ async function SiteMobileCard({
               })
             : "Never"}
         </div>
-        {Number(open?.value ?? 0) > 0 ? (
-          <span className="text-[var(--critical)] font-medium">
-            {Number(open?.value ?? 0)} open
-          </span>
-        ) : (
-          <span className="text-[var(--healthy)]">Stable</span>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {openIncidents > 0 ? (
+            <span className="text-[var(--critical)] font-medium whitespace-nowrap">
+              {openIncidents} open
+            </span>
+          ) : (
+            <span className="text-[var(--healthy)]">Stable</span>
+          )}
+          <StatusBadge status={site.status} />
+        </div>
       </div>
     </Link>
   );

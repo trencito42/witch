@@ -44,7 +44,7 @@ export const MONITORING_THRESHOLDS = {
 
 export type VisualSensitivity = keyof typeof VISUAL_SENSITIVITY;
 
-export const JOB_STALE_MS = 10 * 60 * 1000;
+export const JOB_STALE_MS = 30 * 60 * 1000;
 export const MANUAL_CHECK_COOLDOWN_SECONDS = 60;
 export const MAX_SNAPSHOT_BYTES = 8 * 1024 * 1024;
 export const MAX_DOM_TEXT_CHARS = 20_000;

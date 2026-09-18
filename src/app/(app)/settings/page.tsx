@@ -23,13 +23,14 @@ import {
   actionDeleteAccount,
   actionUpdateAccount,
   actionRenameWorkspace,
+  actionUpdateAlertSettings,
+  actionUpdateStatusPage,
   actionAddDiscordWebhook,
   actionAddEmailChannel,
   actionDeleteAlertChannel,
 } from "@/app/actions";
 import { PLANS, type PlanId, canUseEmailAlerts } from "@/lib/plans";
 import { stripeEnabled } from "@/lib/env";
-import { CreateKeyForm } from "@/components/create-key-form";
 import { maskDiscordWebhookUrl } from "@/lib/discord";
 import {
   Building2,
@@ -124,17 +125,7 @@ export default async function SettingsPage({
                 <Input id="timezone" name="timezone" defaultValue={org?.timezone ?? "UTC"} />
               </div>
 
-              {/* Hidden preserved notification & status page flags to prevent unintended overwrite */}
-              <input type="hidden" name="alertOnIncident" value={org?.alertOnIncident ? "on" : "off"} />
-              <input type="hidden" name="alertOnRecovery" value={org?.alertOnRecovery ? "on" : "off"} />
-              <input type="hidden" name="monthlyReportsEnabled" value={org?.monthlyReportsEnabled ? "on" : "off"} />
-              <input type="hidden" name="minAlertSeverity" value={org?.minAlertSeverity ?? "LOW"} />
-              <input type="hidden" name="statusPageEnabled" value={org?.statusPageEnabled ? "on" : "off"} />
-              <input type="hidden" name="statusPageSlug" value={org?.statusPageSlug ?? ""} />
-              <input type="hidden" name="statusPageHeadline" value={org?.statusPageHeadline ?? ""} />
-
-              <Button type="submit" variant="primary">
-                Save workspace
+              <Button type="submit" variant="primary" className="w-full sm:w-auto">
               </Button>
             </form>
           </section>
@@ -174,13 +165,7 @@ export default async function SettingsPage({
               </p>
             </div>
 
-            <form action={actionRenameWorkspace} className="p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] space-y-4">
-              <input type="hidden" name="name" value={org?.name ?? ""} />
-              <input type="hidden" name="timezone" value={org?.timezone ?? "UTC"} />
-              <input type="hidden" name="billingEmail" value={org?.billingEmail ?? ""} />
-              <input type="hidden" name="statusPageEnabled" value={org?.statusPageEnabled ? "on" : "off"} />
-              <input type="hidden" name="statusPageSlug" value={org?.statusPageSlug ?? ""} />
-              <input type="hidden" name="statusPageHeadline" value={org?.statusPageHeadline ?? ""} />
+            <form action={actionUpdateAlertSettings} className="p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] space-y-4">
 
               <div className="divide-y divide-[var(--border)]">
                 <SwitchRow
@@ -221,7 +206,7 @@ export default async function SettingsPage({
               </div>
 
               <div className="pt-2">
-                <Button type="submit" variant="primary" size="sm">
+                <Button type="submit" variant="primary" size="sm" className="w-full sm:w-auto">
                   Save notification triggers
                 </Button>
               </div>
@@ -245,7 +230,7 @@ export default async function SettingsPage({
                   <Input
                     name="webhookUrl"
                     placeholder="https://discord.com/api/webhooks/…"
-                    className="flex-1 mono text-[12px]"
+                    className="flex-1 mono"
                     required
                   />
                   <Button type="submit" variant="secondary">
@@ -354,14 +339,7 @@ export default async function SettingsPage({
             </p>
           </div>
 
-          <form action={actionRenameWorkspace} className="p-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] space-y-5">
-            <input type="hidden" name="name" value={org?.name ?? ""} />
-            <input type="hidden" name="timezone" value={org?.timezone ?? "UTC"} />
-            <input type="hidden" name="billingEmail" value={org?.billingEmail ?? ""} />
-            <input type="hidden" name="alertOnIncident" value={org?.alertOnIncident ? "on" : "off"} />
-            <input type="hidden" name="alertOnRecovery" value={org?.alertOnRecovery ? "on" : "off"} />
-            <input type="hidden" name="monthlyReportsEnabled" value={org?.monthlyReportsEnabled ? "on" : "off"} />
-            <input type="hidden" name="minAlertSeverity" value={org?.minAlertSeverity ?? "LOW"} />
+          <form action={actionUpdateStatusPage} className="p-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] space-y-5">
 
             <SwitchRow
               title="Enable Public Status Page"
@@ -394,8 +372,8 @@ export default async function SettingsPage({
               />
             </div>
 
-            <div className="pt-2 flex items-center justify-between">
-              <Button type="submit" variant="primary">
+            <div className="pt-2 flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3">
+              <Button type="submit" variant="primary" className="w-full sm:w-auto">
                 Save status page
               </Button>
 
@@ -453,8 +431,9 @@ export default async function SettingsPage({
             {stripeEnabled() && sub?.stripeSubscriptionId && !["canceled", "incomplete_expired"].includes(sub.status) && (
               <div className="pt-2">
                 <form action={actionPortal}>
-                  <Button variant="secondary" leadingIcon={<CreditCard className="h-4 w-4" />}>
-                    Manage billing in Stripe Customer Portal
+                  <Button variant="secondary" className="w-full sm:w-auto" leadingIcon={<CreditCard className="h-4 w-4" />}>
+                    <span className="sm:hidden">Manage billing</span>
+                    <span className="hidden sm:inline">Manage billing in Stripe Customer Portal</span>
                   </Button>
                 </form>
               </div>
@@ -462,7 +441,14 @@ export default async function SettingsPage({
           </div>
 
           {/* PLAN COMPARISON & UPGRADE */}
-          {stripeEnabled() && (!sub?.stripeSubscriptionId || ["canceled", "incomplete_expired"].includes(sub.status)) && (
+          {/* PLAN COMPARISON & UPGRADE */}
+          {!stripeEnabled() && (
+            <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[13px] text-[var(--text-muted)]">
+              Self-serve billing is not configured on this instance. Plans still apply; contact the
+              operator to change them.
+            </div>
+          )}
+          {stripeEnabled() && (!sub?.stripeSubscriptionId || ["canceled", "incomplete_expired", "incomplete"].includes(sub.status)) && (
             <div className="space-y-4">
               <h3 className="text-[16px] font-medium text-[var(--text)]">
                 Available Upgrades
@@ -513,11 +499,14 @@ export default async function SettingsPage({
               API & Automation Keys
             </h2>
             <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
-              Programmatically trigger surveillance checks after CI/CD deployments and ingest telemetry.
+              Witch does not expose a public HTTP API in this release. Keys are not accepted by any
+              endpoint yet.
             </p>
           </div>
 
-          <CreateKeyForm />
+          <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[13px] text-[var(--text-muted)]">
+            API access will ship in a later release. Existing keys, if any, cannot call product APIs.
+          </div>
 
           <section className="space-y-3">
             <h3 className="text-[14px] font-medium text-[var(--text-muted)]">
@@ -586,7 +575,7 @@ export default async function SettingsPage({
                 <Input value={ctx.userEmail} disabled className="opacity-60 cursor-not-allowed" />
               </div>
 
-              <Button type="submit" variant="secondary">
+              <Button type="submit" variant="secondary" className="w-full sm:w-auto">
                 Update profile
               </Button>
             </form>
@@ -614,7 +603,7 @@ export default async function SettingsPage({
                 <Input id="newPassword" name="newPassword" type="password" required minLength={10} />
               </div>
 
-              <Button type="submit" variant="secondary">
+              <Button type="submit" variant="secondary" className="w-full sm:w-auto">
                 Update password
               </Button>
             </form>

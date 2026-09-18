@@ -1,10 +1,11 @@
 import "server-only";
 import Stripe from "stripe";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { billingEvents, subscriptions } from "@/db/schema";
 import { getEnv, stripeEnabled, appUrl } from "@/lib/env";
-import { type PlanId } from "@/lib/plans";
+import { entitledPlanId, type PlanId } from "@/lib/plans";
+import { applyPlanLimits } from "@/features/billing/plan-enforcement";
 import { newId } from "@/lib/ids";
 import { writeAudit } from "@/server/audit";
 import { logger } from "@/lib/logger";
@@ -63,31 +64,34 @@ export async function createCheckoutSession(input: {
     .limit(1);
   const hasLiveSubscription =
     Boolean(sub?.stripeSubscriptionId) &&
-    !["canceled", "incomplete_expired"].includes(sub?.status ?? "");
+    ["active", "trialing", "past_due"].includes(sub?.status ?? "");
   if (hasLiveSubscription) {
     return createPortalSession(input.organizationId);
   }
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: sub?.stripeCustomerId ?? undefined,
-    customer_email: sub?.stripeCustomerId ? undefined : input.billingEmail,
-    client_reference_id: input.organizationId,
-    success_url: `${appUrl()}/settings/billing?checkout=success`,
-    cancel_url: `${appUrl()}/settings/billing?checkout=cancelled`,
-    line_items: [{ price, quantity: 1 }],
-    metadata: {
-      organizationId: input.organizationId,
-      plan: input.plan,
-      userId: input.userId,
-    },
-    subscription_data: {
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: "subscription",
+      customer: sub?.stripeCustomerId ?? undefined,
+      customer_email: sub?.stripeCustomerId ? undefined : input.billingEmail,
+      client_reference_id: input.organizationId,
+      success_url: `${appUrl()}/settings/billing?checkout=success`,
+      cancel_url: `${appUrl()}/settings/billing?checkout=cancelled`,
+      line_items: [{ price, quantity: 1 }],
       metadata: {
         organizationId: input.organizationId,
         plan: input.plan,
+        userId: input.userId,
+      },
+      subscription_data: {
+        metadata: {
+          organizationId: input.organizationId,
+          plan: input.plan,
+        },
       },
     },
-  });
+    { idempotencyKey: `witch-checkout-${input.organizationId}-${input.plan}` },
+  );
   return session.url;
 }
 
@@ -108,14 +112,18 @@ export async function createPortalSession(organizationId: string) {
 }
 
 export async function cancelStripeSubscription(organizationId: string) {
-  const stripe = stripeClient();
   const [sub] = await db
     .select()
     .from(subscriptions)
     .where(eq(subscriptions.organizationId, organizationId))
     .limit(1);
-  if (!stripe || !sub?.stripeSubscriptionId) return;
-  if (["canceled", "incomplete_expired"].includes(sub.status)) return;
+  if (!sub?.stripeSubscriptionId || ["canceled", "incomplete_expired"].includes(sub.status)) {
+    return;
+  }
+  const stripe = stripeClient();
+  if (!stripe) {
+    throw new Error("Cannot cancel billing: Stripe is not configured.");
+  }
   await stripe.subscriptions.cancel(sub.stripeSubscriptionId);
 }
 
@@ -160,22 +168,91 @@ export async function handleStripeWebhook(rawBody: string, signature: string) {
 
 async function applyStripeEvent(event: Stripe.Event) {
   if (
-    event.type === "checkout.session.completed" ||
-    event.type === "customer.subscription.created" ||
-    event.type === "customer.subscription.updated" ||
-    event.type === "customer.subscription.deleted"
+    event.type !== "checkout.session.completed" &&
+    event.type !== "customer.subscription.created" &&
+    event.type !== "customer.subscription.updated" &&
+    event.type !== "customer.subscription.deleted"
   ) {
-    const object = event.data.object as Stripe.Checkout.Session | Stripe.Subscription;
-    const organizationId =
-      ("metadata" in object && object.metadata?.organizationId) ||
-      ("client_reference_id" in object && object.client_reference_id) ||
-      null;
-    if (!organizationId) {
-      logger.warn({ type: event.type }, "stripe event missing organization");
-      return;
-    }
+    return;
+  }
 
-    const [existingSub] = await db
+  const object = event.data.object as Stripe.Checkout.Session | Stripe.Subscription;
+  const organizationId =
+    ("metadata" in object && object.metadata?.organizationId) ||
+    ("client_reference_id" in object && object.client_reference_id) ||
+    null;
+  if (!organizationId) {
+    logger.warn({ type: event.type }, "stripe event missing organization");
+    return;
+  }
+
+  let customerId: string | null = null;
+  let subscriptionId: string | null = null;
+  let priceId: string | null = null;
+  let status = "active";
+  let currentPeriodEnd: Date | null = null;
+  let currentPeriodStart: Date | null = null;
+  let cancelAtPeriodEnd = false;
+
+  const metadataPlan =
+    ("metadata" in object && object.metadata?.plan) ||
+    (event.type === "checkout.session.completed"
+      ? (object as Stripe.Checkout.Session).metadata?.plan
+      : null);
+
+  if (event.type === "checkout.session.completed") {
+    const session = object as Stripe.Checkout.Session;
+    customerId = typeof session.customer === "string" ? session.customer : session.customer?.id ?? null;
+    subscriptionId =
+      typeof session.subscription === "string"
+        ? session.subscription
+        : session.subscription?.id ?? null;
+    if (subscriptionId && stripeEnabled()) {
+      const stripe = stripeClient();
+      if (stripe) {
+        const remote = await stripe.subscriptions.retrieve(subscriptionId);
+        priceId = remote.items.data[0]?.price.id ?? null;
+        status = remote.status;
+        const remotePeriod = remote as Stripe.Subscription & {
+          current_period_end?: number;
+          current_period_start?: number;
+        };
+        currentPeriodEnd = remotePeriod.current_period_end
+          ? new Date(remotePeriod.current_period_end * 1000)
+          : null;
+        currentPeriodStart = remotePeriod.current_period_start
+          ? new Date(remotePeriod.current_period_start * 1000)
+          : null;
+      }
+    }
+  } else {
+    const sub = object as Stripe.Subscription & {
+      current_period_end?: number;
+      current_period_start?: number;
+      cancel_at_period_end?: boolean;
+    };
+    customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+    subscriptionId = sub.id;
+    priceId = sub.items.data[0]?.price.id ?? null;
+    status = sub.status;
+    currentPeriodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000) : null;
+    currentPeriodStart = sub.current_period_start
+      ? new Date(sub.current_period_start * 1000)
+      : null;
+    cancelAtPeriodEnd = Boolean(sub.cancel_at_period_end);
+  }
+
+  const planId = resolveStripePlan({ priceId, metadataPlan });
+  const storedPlan =
+    event.type === "customer.subscription.deleted" || status === "canceled" ? "free" : planId;
+  const effectivePlan = entitledPlanId(storedPlan, status);
+
+  let applied = false;
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT id FROM subscription WHERE organization_id = ${organizationId} FOR UPDATE`,
+    );
+    const [existingSub] = await tx
       .select()
       .from(subscriptions)
       .where(eq(subscriptions.organizationId, organizationId))
@@ -191,85 +268,40 @@ async function applyStripeEvent(event: Stripe.Event) {
       return;
     }
 
-    let customerId: string | null = null;
-    let subscriptionId: string | null = null;
-    let priceId: string | null = null;
-    let status = "active";
-    let currentPeriodEnd: Date | null = null;
-    let currentPeriodStart: Date | null = null;
-    let cancelAtPeriodEnd = false;
-
-    const metadataPlan =
-      ("metadata" in object && object.metadata?.plan) ||
-      (event.type === "checkout.session.completed"
-        ? (object as Stripe.Checkout.Session).metadata?.plan
-        : null);
-
-    if (event.type === "checkout.session.completed") {
-      const session = object as Stripe.Checkout.Session;
-      customerId = typeof session.customer === "string" ? session.customer : session.customer?.id ?? null;
-      subscriptionId =
-        typeof session.subscription === "string"
-          ? session.subscription
-          : session.subscription?.id ?? null;
-      if (!priceId && subscriptionId && stripeEnabled()) {
-        const stripe = stripeClient();
-        if (stripe) {
-          const remote = await stripe.subscriptions.retrieve(subscriptionId);
-          priceId = remote.items.data[0]?.price.id ?? null;
-          status = remote.status;
-        }
-      }
-    } else {
-      const sub = object as Stripe.Subscription & {
-        current_period_end?: number;
-        current_period_start?: number;
-        cancel_at_period_end?: boolean;
-      };
-      customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
-      subscriptionId = sub.id;
-      priceId = sub.items.data[0]?.price.id ?? null;
-      status = sub.status;
-      currentPeriodEnd = sub.current_period_end
-        ? new Date(sub.current_period_end * 1000)
-        : null;
-      currentPeriodStart = sub.current_period_start
-        ? new Date(sub.current_period_start * 1000)
-        : null;
-      cancelAtPeriodEnd = Boolean(sub.cancel_at_period_end);
-    }
-
-    const planId = resolveStripePlan({
-      priceId,
-      metadataPlan,
-    });
-    const effectivePlan = event.type === "customer.subscription.deleted" || status === "canceled"
-      ? "free"
-      : planId;
-
-    await db
+    await tx
       .update(subscriptions)
       .set({
-        planId: effectivePlan,
+        planId: storedPlan,
         status,
-        stripeCustomerId: customerId,
-        stripeSubscriptionId: subscriptionId,
-        stripePriceId: priceId,
-        currentPeriodEnd,
-        currentPeriodStart,
+        stripeCustomerId: customerId ?? existingSub?.stripeCustomerId,
+        stripeSubscriptionId: subscriptionId ?? existingSub?.stripeSubscriptionId,
+        stripePriceId: priceId ?? existingSub?.stripePriceId,
+        currentPeriodEnd: currentPeriodEnd ?? existingSub?.currentPeriodEnd,
+        currentPeriodStart: currentPeriodStart ?? existingSub?.currentPeriodStart,
         cancelAtPeriodEnd,
         lastStripeEventCreated: event.created,
         updatedAt: new Date(),
       })
-      .where(eq(subscriptions.organizationId, organizationId));
+      .where(
+        and(
+          eq(subscriptions.organizationId, organizationId),
+          or(
+            isNull(subscriptions.lastStripeEventCreated),
+            lte(subscriptions.lastStripeEventCreated, event.created),
+          ),
+        ),
+      );
+    applied = true;
+  });
 
-    await writeAudit({
-      action: "billing.updated",
-      organizationId,
-      targetType: "subscription",
-      metadata: { event: event.type, plan: effectivePlan, status },
-    });
-  }
+  if (!applied) return;
+  await applyPlanLimits(organizationId, effectivePlan);
+  await writeAudit({
+    action: "billing.updated",
+    organizationId,
+    targetType: "subscription",
+    metadata: { event: event.type, plan: storedPlan, status, entitled: effectivePlan },
+  });
 }
 
 export { stripeEnabled };

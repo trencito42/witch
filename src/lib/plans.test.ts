@@ -3,9 +3,11 @@ import {
   canCreateSite,
   canCreateWorkspace,
   canUseBrowserMonitoring,
+  entitledPlanId,
   getPlanLimits,
   highestPlan,
   minIntervalForMonitor,
+  subscriptionGrantsEntitlements,
 } from "./plans";
 
 describe("plan limits", () => {
@@ -29,5 +31,16 @@ describe("plan limits", () => {
     expect(canCreateWorkspace("free", 1)).toBe(false);
     expect(canCreateWorkspace("agency", 1)).toBe(true);
     expect(highestPlan(["free", "freelancer"])).toBe("freelancer");
+  });
+
+  it("drops paid entitlements when Stripe is unpaid or incomplete", () => {
+    expect(subscriptionGrantsEntitlements("active")).toBe(true);
+    expect(subscriptionGrantsEntitlements("past_due")).toBe(true);
+    expect(subscriptionGrantsEntitlements("unpaid")).toBe(false);
+    expect(subscriptionGrantsEntitlements("incomplete")).toBe(false);
+    expect(subscriptionGrantsEntitlements("incomplete_expired")).toBe(false);
+    expect(subscriptionGrantsEntitlements("canceled")).toBe(false);
+    expect(entitledPlanId("agency", "unpaid")).toBe("free");
+    expect(entitledPlanId("agency", "past_due")).toBe("agency");
   });
 });

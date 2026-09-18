@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/cn";
 import { X } from "lucide-react";
+import { useFocusTrap } from "./focus-trap";
 
 export function Sheet({
   open,
@@ -15,6 +16,9 @@ export function Sheet({
   children: React.ReactNode;
   side?: "bottom" | "right";
 }) {
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  useFocusTrap(open, panelRef);
+
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && open) {
@@ -37,17 +41,19 @@ export function Sheet({
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Backdrop */}
       <div
         onClick={() => onOpenChange(false)}
         className="fixed inset-0 bg-black/80 backdrop-blur-xs transition-opacity animate-in fade-in"
       />
-      {/* Sheet Content */}
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className={cn(
-          "fixed z-10 bg-[var(--bg-elevated)] border-[var(--border-strong)] p-6 shadow-2xl transition-transform duration-200 ease-out",
+          "fixed z-10 bg-[var(--bg-elevated)] border-[var(--border-strong)] p-6 shadow-2xl transition-transform duration-200 ease-out outline-none",
           side === "bottom"
-            ? "inset-x-0 bottom-0 max-h-[90vh] rounded-t-2xl border-t overflow-y-auto pb-safe"
+            ? "inset-x-0 bottom-0 max-h-[min(90dvh,100svh)] rounded-t-2xl border-t overflow-y-auto pb-safe"
             : "inset-y-0 right-0 w-full max-w-sm border-l overflow-y-auto",
         )}
       >

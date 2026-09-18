@@ -137,12 +137,24 @@ export async function removeMember(ctx: OrgContext, memberId: string) {
 
 export async function changeRole(ctx: OrgContext, memberId: string, role: OrgRole) {
   if (role === "OWNER") throw new Error("Use transfer ownership instead.");
+  const [member] = await db
+    .select()
+    .from(organizationMembers)
+    .where(
+      and(
+        eq(organizationMembers.id, memberId),
+        eq(organizationMembers.organizationId, ctx.organizationId),
+      ),
+    )
+    .limit(1);
+  if (!member) throw new Error("Member not found.");
+  if (member.role === "OWNER") throw new Error("Use transfer ownership instead.");
   await db
     .update(organizationMembers)
     .set({ role })
     .where(
       and(
-        eq(organizationMembers.id, memberId),
+        eq(organizationMembers.id, member.id),
         eq(organizationMembers.organizationId, ctx.organizationId),
       ),
     );
@@ -179,16 +191,18 @@ export async function transferOwnership(ctx: OrgContext, memberId: string) {
     )
     .limit(1);
   if (!member) throw new Error("Member not found.");
-  await db
-    .update(organizationMembers)
-    .set({ role: "ADMIN" })
-    .where(
-      and(
-        eq(organizationMembers.organizationId, ctx.organizationId),
-        eq(organizationMembers.userId, ctx.userId),
-      ),
-    );
-  await db.update(organizationMembers).set({ role: "OWNER" }).where(eq(organizationMembers.id, member.id));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(organizationMembers)
+      .set({ role: "ADMIN" })
+      .where(
+        and(
+          eq(organizationMembers.organizationId, ctx.organizationId),
+          eq(organizationMembers.userId, ctx.userId),
+        ),
+      );
+    await tx.update(organizationMembers).set({ role: "OWNER" }).where(eq(organizationMembers.id, member.id));
+  });
 }
 
 export async function acceptInvitation(userId: string, email: string, token: string) {

@@ -72,7 +72,7 @@ export function AddSiteButton({
               placeholder="https://example.com"
               required
               autoFocus
-              className="mono text-[13px]"
+              className="mono"
               leadingIcon={<Globe className="h-4 w-4" />}
             />
           </div>
@@ -88,7 +88,7 @@ export function AddSiteButton({
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 pt-3 [&_button]:w-full sm:[&_button]:w-auto">
             <Button
               type="button"
               variant="ghost"
@@ -103,7 +103,8 @@ export function AddSiteButton({
               loading={loading}
               trailingIcon={<ArrowRight className="h-4 w-4" />}
             >
-              Deploy surveillance
+              <span className="sm:hidden">Add site</span>
+              <span className="hidden sm:inline">Deploy surveillance</span>
             </Button>
           </div>
         </form>

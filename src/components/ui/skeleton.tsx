@@ -16,6 +16,22 @@ export function Skeleton({
   );
 }
 
+export function PageSkeleton() {
+  return (
+    <div className="space-y-6 animate-spectral-fade">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-80 max-w-full" />
+      </div>
+      <div className="space-y-3">
+        {[...Array(5)].map((_, i) => (
+          <Skeleton key={i} className="h-16 rounded-xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function OverviewSkeleton() {
   return (
     <div className="space-y-8 animate-spectral-fade">

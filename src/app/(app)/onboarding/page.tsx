@@ -28,8 +28,9 @@ export default async function OnboardingPage() {
           Add your first site under watch
         </h1>
         <p className="mt-2 text-[14px] text-[var(--text-muted)] max-w-lg leading-relaxed">
-          Witch watches client websites in real headless Chromium instances. Enter your public URL to
-          run the initial telemetry check and establish your baseline.
+          {ctx.plan.browserMonitoring
+            ? "Witch will run HTTP checks and queue Chromium baselines for this site."
+            : "Witch will run HTTP and TLS checks for this site. Visual baselines require Freelancer or above."}
         </p>
       </div>
 
@@ -60,7 +61,7 @@ export default async function OnboardingPage() {
                 placeholder="https://example.com"
                 required
                 autoFocus
-                className="pl-10 font-mono text-[13px] h-11 bg-[var(--surface-0)] border-[var(--border)] focus:border-[var(--accent)]/60"
+                className="pl-10 font-mono bg-[var(--surface-0)] border-[var(--border)] focus:border-[var(--accent)]/60"
               />
             </div>
             <p className="text-[11px] text-[var(--text-faint)]">
@@ -76,7 +77,7 @@ export default async function OnboardingPage() {
               id="name"
               name="name"
               placeholder="e.g. Production Web Store"
-              className="text-[13px] h-11 bg-[var(--surface-0)] border-[var(--border)] focus:border-[var(--accent)]/60"
+              className="bg-[var(--surface-0)] border-[var(--border)] focus:border-[var(--accent)]/60"
             />
           </div>
 
@@ -84,9 +85,9 @@ export default async function OnboardingPage() {
             <Button
               type="submit"
               variant="primary"
-              className="w-full h-11 font-semibold text-[13px] flex items-center justify-center gap-2"
+              className="w-full h-11 font-semibold flex items-center justify-center gap-2"
             >
-              <span>Initialize first scan &amp; baseline</span>
+              <span>Initialize first scan{ctx.plan.browserMonitoring ? " & baseline" : ""}</span>
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
@@ -99,9 +100,13 @@ export default async function OnboardingPage() {
           <div className="w-8 h-8 rounded-lg bg-[var(--surface-2)] flex items-center justify-center text-[var(--accent)] mb-3">
             <Camera className="w-4 h-4" />
           </div>
-          <div className="text-[13px] font-medium text-[var(--text)] mb-1">Visual Baseline</div>
+          <div className="text-[13px] font-medium text-[var(--text)] mb-1">
+            {ctx.plan.browserMonitoring ? "Visual Baseline" : "HTTP Watch"}
+          </div>
           <p className="text-[12px] text-[var(--text-muted)] leading-relaxed">
-            Pixel-level comparison across mobile and desktop browser sessions.
+            {ctx.plan.browserMonitoring
+              ? "Pixel-level comparison across mobile and desktop browser sessions."
+              : "Availability, TLS, and latency on a 30-minute Free cadence."}
           </p>
         </div>
 

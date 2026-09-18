@@ -29,11 +29,11 @@ export function MetricCard({
         className,
       )}
     >
-      <div className="text-[12px] font-medium tracking-wide text-[var(--text-muted)] uppercase mb-2">
+      <div className="text-[11px] sm:text-[12px] font-medium tracking-wide text-[var(--text-muted)] uppercase mb-2 leading-snug">
         {label}
       </div>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-        <div className="text-2xl sm:text-3xl font-medium tracking-tight text-[var(--text)]">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 min-w-0">
+        <div className="text-xl sm:text-3xl font-medium tracking-tight text-[var(--text)] min-w-0 break-words">
           {value}
         </div>
         {secondary && (

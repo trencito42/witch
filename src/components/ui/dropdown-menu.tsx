@@ -32,11 +32,16 @@ export function DropdownMenu({
         setOpen(false);
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
     if (open) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
 
@@ -48,6 +53,7 @@ export function DropdownMenu({
 
       {open && (
         <div
+          role="menu"
           className={cn(
             "absolute z-50 mt-1.5 min-w-[160px] rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-strong)] p-1 shadow-xl animate-in fade-in zoom-in-95 duration-100",
             align === "right" ? "right-0" : "left-0",
@@ -73,6 +79,7 @@ export function DropdownMenu({
               <button
                 key={index}
                 type="button"
+                role="menuitem"
                 disabled={item.disabled}
                 onClick={() => {
                   setOpen(false);

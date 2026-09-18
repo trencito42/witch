@@ -164,7 +164,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium tracking-wide uppercase border",
+        "inline-flex shrink-0 items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[11px] sm:text-[11px] font-medium tracking-wide uppercase border whitespace-nowrap",
         cfg.bgColor,
         cfg.borderColor,
         cfg.color,

@@ -11,7 +11,7 @@ export async function SiteHeader({
   const signedIn = Boolean(session?.user);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--border)]/80 bg-[var(--surface-0)]/85 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-[var(--border)]/80 bg-[var(--surface-0)]/85 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 sm:px-8">
         <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
           <Wordmark />
@@ -50,7 +50,7 @@ export async function SiteHeader({
           )}
           <Link
             href={signedIn ? "/sites" : "/signup"}
-            className="inline-flex h-8 items-center justify-center rounded-md bg-[var(--accent)] px-3.5 text-[12px] font-semibold tracking-wide text-[var(--accent-foreground)] shadow-[0_0_16px_rgba(187,242,176,0.18)] transition-all hover:bg-[var(--accent)]/90 active:scale-[0.98]"
+            className="inline-flex h-9 sm:h-8 items-center justify-center whitespace-nowrap rounded-md bg-[var(--accent)] px-3 text-[13px] sm:text-[12px] font-semibold tracking-wide text-[var(--accent-foreground)] shadow-[0_0_16px_rgba(187,242,176,0.18)] transition-all hover:bg-[var(--accent)]/90 active:scale-[0.98]"
           >
             {signedIn ? "Sites" : "Start monitoring"}
           </Link>

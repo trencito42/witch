@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { incidents, organizations, sites } from "@/db/schema";
 import { StatusBadge, HealthBeacon, Badge } from "@/components/ui";
-import { Wordmark, LogoMark } from "@/components/logo";
+import { Wordmark } from "@/components/logo";
 import { Globe, ShieldCheck, Clock } from "lucide-react";
 
 export default async function StatusPage({
@@ -27,22 +27,56 @@ export default async function StatusPage({
 
   const hasDown = orgSites.some((site) => site.status === "DOWN");
   const hasDegraded = orgSites.some((site) => site.status === "DEGRADED");
-  const beaconStatus = hasDown ? "critical" : hasDegraded ? "degraded" : "healthy";
+  const liveSites = orgSites.filter((site) => !["PAUSED", "UNKNOWN"].includes(site.status));
+  const allPaused = orgSites.length > 0 && orgSites.every((site) => site.status === "PAUSED");
+  const unknownOnly =
+    orgSites.length > 0 &&
+    !hasDown &&
+    !hasDegraded &&
+    liveSites.length === 0 &&
+    orgSites.some((site) => site.status === "UNKNOWN");
+  const beaconStatus = hasDown
+    ? "critical"
+    : hasDegraded
+      ? "degraded"
+      : allPaused
+        ? "paused"
+        : unknownOnly
+          ? "warning"
+          : "healthy";
   const overallLabel = hasDown
     ? "Major Service Disruption"
     : hasDegraded
       ? "Active Service Degradation"
-      : "All Systems Operational";
+      : allPaused
+        ? "Monitoring Paused"
+        : unknownOnly
+          ? "Status Unknown"
+          : "All Systems Operational";
 
   const visibleIds = orgSites.map((site) => site.id);
+  const ninetyDays = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const history = visibleIds.length
     ? await db
         .select()
         .from(incidents)
-        .where(and(eq(incidents.organizationId, org.id), inArray(incidents.siteId, visibleIds)))
+        .where(
+          and(
+            eq(incidents.organizationId, org.id),
+            inArray(incidents.siteId, visibleIds),
+            gte(incidents.firstDetectedAt, ninetyDays),
+            inArray(incidents.status, ["OPEN", "ACKNOWLEDGED", "RESOLVED"]),
+          ),
+        )
         .orderBy(desc(incidents.firstDetectedAt))
         .limit(20)
     : [];
+  const freshestCheck = orgSites
+    .map((site) => site.lastCheckedAt)
+    .filter((value): value is Date => Boolean(value))
+    .sort((a, b) => b.getTime() - a.getTime())[0];
+  const fresh =
+    freshestCheck && Date.now() - freshestCheck.getTime() < 2 * 60 * 60 * 1000;
 
   return (
     <div className="min-h-screen bg-[var(--surface-0)] text-[var(--text)] flex flex-col selection:bg-[var(--accent)]/30">
@@ -58,12 +92,8 @@ export default async function StatusPage({
             </span>
           </div>
           <div className="flex items-center gap-2 text-[12px] text-[var(--text-muted)]">
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 hover:text-[var(--text)] transition-colors"
-            >
-              <LogoMark size={14} />
-              <span>Witch Observatory</span>
+            <Link href="/" className="hover:opacity-90 transition-opacity">
+              <Wordmark size="mobile" />
             </Link>
           </div>
         </div>
@@ -98,7 +128,13 @@ export default async function StatusPage({
             <div className="text-left sm:text-right border-t sm:border-t-0 pt-3 sm:pt-0 border-[var(--border)]/60">
               <div className="flex items-center sm:justify-end gap-1.5 text-[11px] font-mono text-[var(--text-faint)]">
                 <Clock className="w-3.5 h-3.5" />
-                <span>Verified live</span>
+                <span>
+                  {fresh && freshestCheck
+                    ? `Last check ${freshestCheck.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                    : freshestCheck
+                      ? "Checks may be delayed"
+                      : "No checks recorded yet"}
+                </span>
               </div>
               <div className="text-[12px] text-[var(--text-muted)] mt-0.5">
                 {orgSites.length} {orgSites.length === 1 ? "service" : "services"} under watch
@@ -114,7 +150,7 @@ export default async function StatusPage({
               Monitored Endpoints
             </h2>
             <span className="text-[12px] text-[var(--text-faint)] font-mono">
-              HTTP &amp; Headless Browser Checks
+              Public status
             </span>
           </div>
 
@@ -130,13 +166,21 @@ export default async function StatusPage({
                     ? "critical"
                     : site.status === "DEGRADED"
                       ? "warning"
-                      : "healthy";
+                      : site.status === "PAUSED"
+                        ? "neutral"
+                        : site.status === "UNKNOWN"
+                          ? "warning"
+                          : "healthy";
                 const badgeLabel =
                   site.status === "DOWN"
                     ? "Outage"
                     : site.status === "DEGRADED"
                       ? "Degraded"
-                      : "Operational";
+                      : site.status === "PAUSED"
+                        ? "Paused"
+                        : site.status === "UNKNOWN"
+                          ? "Unknown"
+                          : "Operational";
 
                 return (
                   <div
@@ -150,9 +194,6 @@ export default async function StatusPage({
                       <div>
                         <div className="text-[14px] font-medium text-[var(--text)]">
                           {site.name}
-                        </div>
-                        <div className="font-mono text-[12px] text-[var(--text-muted)] truncate max-w-xs sm:max-w-md">
-                          {site.url}
                         </div>
                       </div>
                     </div>
@@ -181,8 +222,7 @@ export default async function StatusPage({
                 All systems quiet
               </div>
               <p className="text-[13px] text-[var(--text-muted)] max-w-sm mx-auto leading-relaxed">
-                No downtime or visual regressions reported in the past 90 days. Continuous checks
-                are active.
+                No public incidents in the past 90 days.
               </p>
             </div>
           ) : (
@@ -226,8 +266,7 @@ export default async function StatusPage({
 
       {/* Footer */}
       <footer className="border-t border-[var(--border)]/80 py-8 text-center text-[12px] text-[var(--text-muted)]">
-        <div className="flex items-center justify-center gap-2 mb-1">
-          <LogoMark size={16} />
+        <div className="flex items-center justify-center mb-1">
           <Wordmark />
         </div>
         <p className="text-[11px] text-[var(--text-faint)]">

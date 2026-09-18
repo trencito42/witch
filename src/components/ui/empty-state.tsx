@@ -48,7 +48,7 @@ export function EmptyState({
           {description}
         </p>
       )}
-      {action && <div className="mt-1">{action}</div>}
+      {action && <div className="mt-1 w-full max-w-xs [&_button]:w-full">{action}</div>}
     </div>
   );
 }

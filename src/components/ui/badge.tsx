@@ -25,14 +25,14 @@ export function Badge({
   };
 
   const sizeStyles = {
-    sm: "px-1.5 py-0.2 text-[10px]",
-    md: "px-2 py-0.5 text-[11px]",
+    sm: "px-1.5 py-0.2 text-[11px]",
+    md: "px-2 py-0.5 text-[12px] sm:text-[11px]",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md font-medium tracking-wide border",
+        "inline-flex items-center gap-1 rounded-md font-medium tracking-wide border whitespace-nowrap",
         variantStyles[variant],
         sizeStyles[size],
         className,

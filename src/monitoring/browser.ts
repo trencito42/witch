@@ -37,29 +37,38 @@ let browserPromise: Promise<Browser> | null = null;
 async function getBrowser() {
   if (!browserPromise) {
     const env = getEnv();
-    browserPromise = chromium.launch({
-      headless: env.PLAYWRIGHT_HEADLESS !== false,
-      executablePath: env.PLAYWRIGHT_CHROMIUM_PATH,
-      args: [
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--no-default-browser-check",
-        "--disable-extensions",
-        "--disable-background-networking",
-        "--disable-sync",
-        "--disable-translate",
-        "--no-first-run",
-        "--disable-features=Translate,BackForwardCache",
-      ],
-    });
+    browserPromise = chromium
+      .launch({
+        headless: env.PLAYWRIGHT_HEADLESS !== false,
+        executablePath: env.PLAYWRIGHT_CHROMIUM_PATH,
+        args: [
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+          "--no-default-browser-check",
+          "--disable-extensions",
+          "--disable-background-networking",
+          "--disable-sync",
+          "--disable-translate",
+          "--no-first-run",
+          "--disable-features=Translate,BackForwardCache",
+        ],
+      })
+      .catch((error) => {
+        browserPromise = null;
+        throw error;
+      });
   }
   return browserPromise;
 }
 
 export async function closeBrowser() {
   if (browserPromise) {
-    const browser = await browserPromise;
-    await browser.close();
+    try {
+      const browser = await browserPromise;
+      await browser.close();
+    } catch {
+      /* launch may already have failed */
+    }
     browserPromise = null;
   }
 }

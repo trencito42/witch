@@ -111,6 +111,9 @@ export async function actionUpdateMonitor(monitorId: string, formData: FormData)
     .where(and(eq(monitors.id, monitorId), eq(monitors.organizationId, ctx.organizationId)))
     .limit(1);
   if (!monitor) throw new Error("Monitor not found.");
+  if (monitor.type !== "HTTP" && !canUseBrowserMonitoring(ctx.plan.id)) {
+    throw new Error("Browser monitors require Freelancer or above.");
+  }
   const min = minIntervalForMonitor(ctx.plan.id, monitor.type as "HTTP");
   if (seconds < min) throw new Error("That interval is not available on your plan.");
   await db
@@ -175,19 +178,23 @@ export async function actionAcceptBaseline(snapshotId: string, siteId: string) {
     )
     .limit(1);
   if (!snapshot) throw new Error("Snapshot not found.");
-  await db
-    .update(visualSnapshots)
-    .set({ isBaseline: false })
-    .where(
-      and(
-        eq(visualSnapshots.monitorId, snapshot.monitorId),
-        eq(visualSnapshots.organizationId, ctx.organizationId),
-      ),
-    );
-  await db
-    .update(visualSnapshots)
-    .set({ isBaseline: true })
-    .where(eq(visualSnapshots.id, snapshot.id));
+  if (snapshot.siteId !== siteId) throw new Error("Snapshot does not belong to this site.");
+  await db.transaction(async (tx) => {
+    await tx
+      .update(visualSnapshots)
+      .set({ isBaseline: false })
+      .where(
+        and(
+          eq(visualSnapshots.monitorId, snapshot.monitorId),
+          eq(visualSnapshots.organizationId, ctx.organizationId),
+          eq(visualSnapshots.viewport, snapshot.viewport),
+        ),
+      );
+    await tx
+      .update(visualSnapshots)
+      .set({ isBaseline: true })
+      .where(eq(visualSnapshots.id, snapshot.id));
+  });
   await writeAudit({
     action: "baseline.changed",
     actorUserId: ctx.userId,
@@ -216,10 +223,34 @@ export async function actionRenameWorkspace(formData: FormData) {
     .set({
       timezone,
       billingEmail: billingEmail || null,
+      updatedAt: new Date(),
+    })
+    .where(eq(organizations.id, ctx.organizationId));
+  revalidatePath("/settings");
+}
+
+export async function actionUpdateAlertSettings(formData: FormData) {
+  const ctx = await requireOrgContext();
+  assertAdmin(ctx);
+  await db
+    .update(organizations)
+    .set({
       alertOnIncident: formData.get("alertOnIncident") === "on",
       alertOnRecovery: formData.get("alertOnRecovery") === "on",
       monthlyReportsEnabled: formData.get("monthlyReportsEnabled") === "on",
       minAlertSeverity: formString(formData, "minAlertSeverity") || "LOW",
+      updatedAt: new Date(),
+    })
+    .where(eq(organizations.id, ctx.organizationId));
+  revalidatePath("/settings");
+}
+
+export async function actionUpdateStatusPage(formData: FormData) {
+  const ctx = await requireOrgContext();
+  assertAdmin(ctx);
+  await db
+    .update(organizations)
+    .set({
       statusPageEnabled: formData.get("statusPageEnabled") === "on",
       statusPageSlug: formString(formData, "statusPageSlug") || null,
       statusPageHeadline: formString(formData, "statusPageHeadline") || null,

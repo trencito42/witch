@@ -104,17 +104,17 @@ export function SwitchRow({
     <div
       onClick={toggle}
       className={cn(
-        "group flex items-center justify-between gap-4 py-3 cursor-pointer select-none rounded-lg px-2 -mx-2 hover:bg-[var(--bg-hover)] transition-colors",
+        "group flex items-center justify-between gap-4 py-3 cursor-pointer select-none rounded-lg px-2 -mx-2 hover:bg-[var(--bg-hover)] transition-colors min-w-0",
         disabled && "opacity-50 pointer-events-none",
         className,
       )}
     >
-      <div className="space-y-0.5 pr-2">
-        <div className="text-[13px] font-medium text-[var(--text)] group-hover:text-white transition-colors">
+      <div className="space-y-0.5 pr-2 min-w-0">
+        <div className="text-[14px] md:text-[13px] font-medium text-[var(--text)] group-hover:text-white transition-colors">
           {title}
         </div>
         {description && (
-          <div className="text-[12px] text-[var(--text-muted)] leading-relaxed">
+          <div className="text-[13px] md:text-[12px] text-[var(--text-muted)] leading-relaxed">
             {description}
           </div>
         )}

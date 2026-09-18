@@ -42,10 +42,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const sizeStyles = {
-      sm: "h-8 px-2.5 text-[12px] gap-1.5 rounded-md",
-      md: "h-9 px-3.5 text-[13px] gap-2 rounded-md",
-      lg: "h-10 px-4 text-[14px] gap-2.5 rounded-lg",
-      icon: "h-9 w-9 p-0 justify-center rounded-md",
+      sm: "min-h-10 h-10 px-3 text-[14px] gap-1.5 rounded-md md:h-8 md:min-h-8 md:px-2.5 md:text-[12px]",
+      md: "min-h-11 h-11 px-3.5 text-[15px] gap-2 rounded-md md:h-9 md:min-h-9 md:text-[13px]",
+      lg: "min-h-11 h-11 px-4 text-[15px] gap-2.5 rounded-lg md:h-10 md:min-h-10 md:text-[14px]",
+      icon: "h-11 w-11 p-0 justify-center rounded-md md:h-9 md:w-9",
     };
 
     return (
@@ -53,7 +53,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          "inline-flex items-center justify-center font-medium transition-all duration-150 select-none cursor-pointer",
+          "inline-flex items-center justify-center whitespace-nowrap font-medium transition-all duration-150 select-none cursor-pointer [&_svg]:text-current",
           "focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]",
           "disabled:opacity-40 disabled:pointer-events-none disabled:cursor-not-allowed",
           variantStyles[variant],

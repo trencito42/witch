@@ -52,6 +52,9 @@ async function main() {
 
   if (await tableExists("user")) await markApplied("0000_init.sql");
   if (await columnExists("visual_diff", "metadata")) await markApplied("0001_monitoring_hardening.sql");
+  if (await columnExists("subscription", "last_stripe_event_created")) {
+    await markApplied("0002_launch_fixes.sql");
+  }
 
   const dir = path.resolve("drizzle");
   const files = (await readdir(dir))

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui";
-import { LogoMark } from "@/components/logo";
+import { Wordmark } from "@/components/logo";
 import {
   Globe,
   Smartphone,
@@ -129,7 +129,6 @@ const plans = [
     features: [
       "75 sites under watch",
       "5-minute checks with priority jitter",
-      "API keys for automation",
       "180-day telemetry history",
       "Advanced reporting",
       "Up to 25 workspace members",
@@ -142,7 +141,7 @@ const plans = [
 const faqs = [
   {
     q: "How does Witch differ from traditional uptime monitors?",
-    a: "Traditional uptime monitors send a shallow HTTP GET or ping every few minutes. If the server responds with status 200, they mark the site green—even if the page is completely blank, CSS failed to load, or the checkout button disappeared. Witch loads the page inside an actual Chromium browser session, captures high-resolution screenshots, executes scripts, and compares the rendered result against an accepted baseline.",
+    a: "Traditional uptime monitors send a shallow HTTP GET or ping every few minutes. If the server responds with status 200, they mark the site green—even if the page is completely blank, CSS failed to load, or the checkout button disappeared. On Freelancer and above, Witch loads the page inside Chromium, captures screenshots, and compares them against an accepted baseline. Free stays HTTP and TLS only.",
   },
   {
     q: "Will Witch checks overload or degrade my client websites?",
@@ -150,11 +149,11 @@ const faqs = [
   },
   {
     q: "Can I mask dynamic elements like rotating banners or timestamps?",
-    a: "Yes. Witch supports noise masking and configurable sensitivity thresholds so dynamic content, live chat widgets, and date badges don't trigger false alerts.",
+    a: "Yes, on plans with visual monitoring. You can ignore CSS selectors and tune sensitivity so banners, chat widgets, and timestamps do not page you.",
   },
   {
     q: "How do client monthly reports work?",
-    a: "At the end of each month, Witch generates a clean, printable PDF report detailing uptime SLA, total checks performed, response latencies, and resolved incidents. You can download or print it as-is for clients.",
+    a: "On Freelancer and above, Witch compiles a printable monthly report with HTTP uptime, incidents detected and resolved, and current status. You can open it in the app and print to PDF from the browser.",
   },
   {
     q: "Do I need a credit card to get started?",
@@ -187,9 +186,9 @@ export default function HomePage() {
           </h1>
 
           <p className="mt-6 max-w-2xl text-[15px] sm:text-[17px] leading-relaxed text-[var(--text-muted)]">
-            Traditional monitors ping an endpoint and assume everything is fine. Witch spins up real
-            headless Chromium sessions, diffs visual baselines, and detects the silent regressions
-            visitors actually see.
+            Traditional monitors ping an endpoint and assume everything is fine. Witch starts with
+            HTTP and TLS checks on Free, then adds real Chromium sessions and visual diffs on
+            Freelancer and above.
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row items-center gap-3.5">
@@ -215,7 +214,7 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-[var(--healthy)]" />
-              <span>Real Chromium browser</span>
+              <span>HTTP monitoring on Free</span>
             </div>
           </div>
         </section>
@@ -422,7 +421,7 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="pt-4 mt-4 border-t border-[var(--border)]/60 text-[12px] font-mono text-[var(--accent)]">
-                ● 99.9% Alert Accuracy
+                ● Confirmation before paging
               </div>
             </div>
           </div>
@@ -439,8 +438,7 @@ export default function HomePage() {
                 Your site can be online and still be completely broken.
               </h2>
               <p className="mt-2 text-[14px] text-[var(--text-muted)]">
-                Here are actual production incidents caught by Witch that ordinary uptime monitors
-                missed:
+                Illustrative failures Witch is designed to catch that ordinary uptime monitors miss:
               </p>
             </div>
 
@@ -640,9 +638,7 @@ export default function HomePage() {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(187,242,176,0.08)_0%,transparent_70%)]" />
 
             <div className="relative z-10 max-w-xl mx-auto space-y-4">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[var(--surface-0)] border border-[var(--border)] text-[var(--accent)] shadow-md">
-                <LogoMark size={24} />
-              </div>
+              <Wordmark className="justify-center" />
               <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight text-[var(--text)]">
                 Ready to watch your websites beyond uptime?
               </h2>
@@ -668,8 +664,7 @@ export default function HomePage() {
       <footer className="border-t border-[var(--border)]/80 py-10 bg-[var(--surface-0)]">
         <div className="mx-auto max-w-6xl px-5 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[12px] text-[var(--text-muted)]">
           <div className="flex items-center gap-2.5">
-            <LogoMark size={16} />
-            <span className="font-medium text-[var(--text)]">Witch</span>
+            <Wordmark />
             <span>— Website monitoring beyond uptime.</span>
           </div>
           <div className="flex items-center gap-6">

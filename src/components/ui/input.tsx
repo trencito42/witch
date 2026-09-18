@@ -23,7 +23,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           type={type}
           className={cn(
-            "h-9 w-full rounded-md border bg-[var(--bg-elevated)] px-3 text-[13px] text-[var(--text)] transition-all duration-150",
+            "h-11 w-full rounded-md border bg-[var(--bg-elevated)] px-3 text-[var(--text)] transition-all duration-150",
             "placeholder:text-[var(--text-faint)]",
             "hover:border-[var(--border-strong)]",
             "focus-visible:outline-none focus-visible:border-[var(--border-focus)] focus-visible:ring-1 focus-visible:ring-[var(--border-focus)] focus-visible:bg-[var(--bg-card)]",
@@ -34,6 +34,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             leadingIcon && "pl-9",
             trailingIcon && "pr-9",
             className,
+            "h-11 text-[16px] md:h-9 md:text-[13px]",
           )}
           {...props}
         />
@@ -59,7 +60,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       <textarea
         ref={ref}
         className={cn(
-          "w-full min-h-[80px] rounded-md border bg-[var(--bg-elevated)] p-3 text-[13px] text-[var(--text)] transition-all duration-150",
+          "w-full min-h-[80px] rounded-md border bg-[var(--bg-elevated)] p-3 text-[var(--text)] transition-all duration-150",
           "placeholder:text-[var(--text-faint)]",
           "hover:border-[var(--border-strong)]",
           "focus-visible:outline-none focus-visible:border-[var(--border-focus)] focus-visible:ring-1 focus-visible:ring-[var(--border-focus)] focus-visible:bg-[var(--bg-card)]",
@@ -68,6 +69,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             ? "border-[var(--critical)] focus-visible:border-[var(--critical)] focus-visible:ring-[var(--critical)]"
             : "border-[var(--border)]",
           className,
+          "text-[16px] md:text-[13px]",
         )}
         {...props}
       />
@@ -93,9 +95,10 @@ export function SearchInput({
         onChange={onChange}
         placeholder={placeholder}
         className={cn(
-          "h-9 w-full rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] pl-8 pr-8 text-[13px] text-[var(--text)] transition-all duration-150",
+          "h-11 w-full rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] pl-8 pr-8 text-[var(--text)] transition-all duration-150",
           "placeholder:text-[var(--text-faint)] hover:border-[var(--border-strong)]",
           "focus-visible:outline-none focus-visible:border-[var(--border-focus)] focus-visible:ring-1 focus-visible:ring-[var(--border-focus)] focus-visible:bg-[var(--bg-card)]",
+          "text-[16px] md:h-9 md:text-[13px]",
         )}
         {...props}
       />

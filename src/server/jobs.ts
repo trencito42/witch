@@ -48,7 +48,13 @@ export async function hasJobCreatedSince(type: JobType, since: Date) {
   const rows = await db
     .select({ id: jobs.id })
     .from(jobs)
-    .where(and(eq(jobs.type, type), gte(jobs.createdAt, since)))
+    .where(
+      and(
+        eq(jobs.type, type),
+        gte(jobs.createdAt, since),
+        inArray(jobs.status, ["pending", "running", "completed"]),
+      ),
+    )
     .limit(1);
   return Boolean(rows[0]);
 }
@@ -69,19 +75,27 @@ export async function hasActiveJob(monitorId: string) {
 
 export async function claimNextJob(
   workerId = `${os.hostname()}:${process.pid}`,
-  options?: { excludeTypes?: JobType[] },
+  options?: { excludeTypes?: JobType[]; excludeBrowserJobs?: boolean },
 ): Promise<Job | null> {
   const now = new Date();
   const conn = await getPool().getConnection();
   let claimedId: string | null = null;
   try {
     await conn.beginTransaction();
-    const exclude = options?.excludeTypes?.length
-      ? `AND type NOT IN (${options.excludeTypes.map(() => "?").join(",")})`
-      : "";
-    const params: unknown[] = ["pending", now, ...(options?.excludeTypes ?? [])];
+    const excludeParts: string[] = [];
+    const params: unknown[] = ["pending", now];
+    if (options?.excludeTypes?.length) {
+      excludeParts.push(`AND type NOT IN (${options.excludeTypes.map(() => "?").join(",")})`);
+      params.push(...options.excludeTypes);
+    }
+    if (options?.excludeBrowserJobs) {
+      excludeParts.push(
+        `AND type <> 'BROWSER_CHECK' AND (type <> 'CONFIRM_CHECK' OR JSON_UNQUOTE(JSON_EXTRACT(payload, '$.reason')) = 'http-confirm')`,
+      );
+    }
+    const exclude = excludeParts.join(" ");
     const [rows] = await conn.query(
-      `SELECT * FROM job WHERE status = ? AND run_at <= ? ${exclude} ORDER BY run_at ASC LIMIT 1 FOR UPDATE`,
+      `SELECT * FROM job WHERE status = ? AND run_at <= ? ${exclude} ORDER BY run_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED`,
       params,
     );
     const picked = Array.isArray(rows) ? (rows[0] as Record<string, unknown> | undefined) : undefined;

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogoMark } from "@/components/logo";
+import { Wordmark } from "@/components/logo";
 import {
   Activity,
   Globe,
@@ -99,17 +99,8 @@ export function AppShell({
         <aside className="hidden md:flex flex-col w-[232px] shrink-0 border-r border-[var(--border)] bg-[var(--bg-elevated)]/40 p-4 sticky top-0 h-screen z-30 select-none">
           {/* Brand header */}
           <div className="flex items-center justify-between mb-5 px-2">
-            <Link
-              href="/overview"
-              className="flex items-center gap-2.5 group transition-opacity"
-            >
-              <div className="relative flex items-center justify-center h-7 w-7 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] group-hover:border-[rgba(187,242,176,0.4)] transition-colors">
-                <LogoMark className="h-4 w-4 text-[var(--accent)]" />
-                <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-[var(--healthy)] shadow-[0_0_6px_var(--healthy)]" />
-              </div>
-              <span className="text-[14px] font-medium tracking-tight text-[var(--text)]">
-                Witch
-              </span>
+            <Link href="/overview" className="transition-opacity hover:opacity-90">
+              <Wordmark />
             </Link>
           </div>
 
@@ -275,29 +266,25 @@ export function AppShell({
         {/* MAIN VIEWPORT AREA */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* MOBILE TOP BAR */}
-          <header className="flex md:hidden items-center justify-between h-14 px-4 border-b border-[var(--border)] bg-[var(--bg-elevated)]/70 backdrop-blur-md sticky top-0 z-40">
-            <Link href="/overview" className="flex items-center gap-2">
-              <div className="relative flex items-center justify-center h-6 w-6 rounded-md bg-[var(--bg-card)] border border-[var(--border)]">
-                <LogoMark className="h-3.5 w-3.5 text-[var(--accent)]" />
-                <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-[var(--healthy)]" />
-              </div>
-              <span className="text-[14px] font-medium tracking-tight">Witch</span>
+          <header className="flex md:hidden items-center justify-between min-h-14 gap-3 px-4 border-b border-[var(--border)] bg-[var(--bg-elevated)]/70 backdrop-blur-md sticky top-0 z-40 pt-[env(safe-area-inset-top,0px)]">
+            <Link href="/overview" className="shrink-0 transition-opacity hover:opacity-90">
+              <Wordmark size="mobile" />
             </Link>
 
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] px-2 py-0.5 rounded-md bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] max-w-[130px] truncate">
+            <div className="flex min-w-0 items-center justify-end">
+              <span className="block max-w-[120px] truncate text-[12px] px-2 py-0.5 rounded-md bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)]">
                 {organization.name}
               </span>
             </div>
           </header>
 
           {/* PAGE CONTENT CONTAINER */}
-          <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 mb-16 md:mb-0">
+          <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8">
             {children}
           </main>
 
           {/* MOBILE FIXED BOTTOM NAVIGATION */}
-          <nav className="flex md:hidden fixed bottom-0 left-0 right-0 z-40 h-14 items-center justify-around border-t border-[var(--border)] bg-[var(--bg-elevated)]/90 backdrop-blur-md px-2 safe-area-bottom">
+          <nav className="flex md:hidden fixed bottom-0 left-0 right-0 z-40 min-h-14 items-end justify-around border-t border-[var(--border)] bg-[var(--bg-elevated)]/90 backdrop-blur-md px-1 pt-1 pb-[max(0.4rem,env(safe-area-inset-bottom,0px))]">
             {primaryNav.map((item) => {
               const active =
                 pathname === item.href ||
@@ -308,7 +295,7 @@ export function AppShell({
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex flex-col items-center justify-center h-full flex-1 gap-1 py-1 text-[10px] font-medium transition-colors select-none",
+                    "flex flex-col items-center justify-center min-h-12 flex-1 gap-0.5 py-1 text-[11px] font-medium transition-colors select-none min-w-0",
                     active
                       ? "text-[var(--accent)]"
                       : "text-[var(--text-muted)] hover:text-[var(--text)]",
@@ -323,7 +310,7 @@ export function AppShell({
               type="button"
               onClick={() => setMobileMoreOpen(true)}
               className={cn(
-                "flex flex-col items-center justify-center h-full flex-1 gap-1 py-1 text-[10px] font-medium transition-colors select-none cursor-pointer",
+                "flex flex-col items-center justify-center min-h-12 flex-1 gap-0.5 py-1 text-[11px] font-medium transition-colors select-none cursor-pointer min-w-0",
                 mobileMoreOpen || pathname === "/team" || pathname === "/settings"
                   ? "text-[var(--accent)]"
                   : "text-[var(--text-muted)] hover:text-[var(--text)]",
@@ -343,9 +330,9 @@ export function AppShell({
                   Active Workspace
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)]">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <Building2 className="h-4 w-4 text-[var(--accent)]" />
-                    <span className="text-[13px] font-medium">{organization.name}</span>
+                    <span className="text-[13px] font-medium truncate">{organization.name}</span>
                   </div>
                 </div>
 
@@ -365,7 +352,7 @@ export function AppShell({
                             type="submit"
                             className="flex items-center justify-between w-full px-3 py-2 text-[12px] text-[var(--text-muted)] hover:text-[var(--text)] rounded-md hover:bg-[var(--bg-hover)]"
                           >
-                            <span>Switch to {org.name}</span>
+                            <span className="truncate">Switch to {org.name}</span>
                           </button>
                         </form>
                       ))}
@@ -410,16 +397,16 @@ export function AppShell({
 
               {/* User Account & Logout */}
               <div className="pt-4 border-t border-[var(--border)]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between gap-3 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="flex items-center justify-center h-8 w-8 rounded-full bg-[var(--bg-card)] border border-[var(--border-strong)] text-[12px] font-semibold text-[var(--text-muted)]">
                       {initials}
                     </div>
-                    <div>
-                      <div className="text-[13px] font-medium text-[var(--text)]">
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium text-[var(--text)] truncate">
                         {user.name || "User"}
                       </div>
-                      <div className="text-[11px] text-[var(--text-muted)]">
+                      <div className="text-[12px] text-[var(--text-muted)] truncate">
                         {user.email}
                       </div>
                     </div>

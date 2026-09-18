@@ -81,28 +81,64 @@ export default async function SitePage({
     .orderBy(desc(incidents.lastDetectedAt))
     .limit(20);
 
-  const snapshots = await db
+  const [baselineDesktop] = await db
     .select()
     .from(visualSnapshots)
-    .where(and(eq(visualSnapshots.siteId, site.id), eq(visualSnapshots.organizationId, ctx.organizationId)))
+    .where(
+      and(
+        eq(visualSnapshots.siteId, site.id),
+        eq(visualSnapshots.organizationId, ctx.organizationId),
+        eq(visualSnapshots.viewport, "desktop"),
+        eq(visualSnapshots.isBaseline, true),
+      ),
+    )
     .orderBy(desc(visualSnapshots.createdAt))
-    .limit(20);
-
-  const diffs = await db
+    .limit(1);
+  const [currentDesktop] = await db
     .select()
+    .from(visualSnapshots)
+    .where(
+      and(
+        eq(visualSnapshots.siteId, site.id),
+        eq(visualSnapshots.organizationId, ctx.organizationId),
+        eq(visualSnapshots.viewport, "desktop"),
+      ),
+    )
+    .orderBy(desc(visualSnapshots.createdAt))
+    .limit(1);
+  const [currentMobile] = await db
+    .select()
+    .from(visualSnapshots)
+    .where(
+      and(
+        eq(visualSnapshots.siteId, site.id),
+        eq(visualSnapshots.organizationId, ctx.organizationId),
+        eq(visualSnapshots.viewport, "mobile"),
+      ),
+    )
+    .orderBy(desc(visualSnapshots.createdAt))
+    .limit(1);
+  const [latestDiff] = await db
+    .select({ diff: visualDiffs })
     .from(visualDiffs)
-    .where(and(eq(visualDiffs.siteId, site.id), eq(visualDiffs.organizationId, ctx.organizationId)))
+    .innerJoin(visualSnapshots, eq(visualSnapshots.id, visualDiffs.currentSnapshotId))
+    .where(
+      and(
+        eq(visualDiffs.siteId, site.id),
+        eq(visualDiffs.organizationId, ctx.organizationId),
+        eq(visualSnapshots.viewport, "desktop"),
+      ),
+    )
     .orderBy(desc(visualDiffs.createdAt))
-    .limit(5);
+    .limit(1);
 
   const thirty = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const metrics = await computeSiteMetrics(ctx.organizationId, site.id, thirty, new Date());
-  const currentDesktop = snapshots.find((item) => item.viewport === "desktop");
-  const currentMobile = snapshots.find((item) => item.viewport === "mobile");
-  const baselineDesktop = snapshots.find((item) => item.viewport === "desktop" && item.isBaseline);
-  const latestDiff = diffs[0];
+  const latestDesktopDiff = latestDiff?.diff;
 
-  const openIncidentsCount = siteIncidents.filter((item) => item.status === "OPEN").length;
+  const openIncidentsCount = siteIncidents.filter((item) =>
+    ["OPEN", "ACKNOWLEDGED"].includes(item.status),
+  ).length;
 
   const tabItems = [
     { id: "overview", label: "Overview", icon: <Activity className="h-3.5 w-3.5" />, href: `/sites/${site.id}?tab=overview` },
@@ -118,7 +154,7 @@ export default async function SitePage({
       {/* SITE HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b border-[var(--border)]">
         <div className="space-y-1.5 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-start gap-3 min-w-0">
             {site.faviconUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -126,34 +162,36 @@ export default async function SitePage({
                 alt=""
                 width={22}
                 height={22}
-                className="rounded-xs shrink-0"
+                className="rounded-xs shrink-0 mt-1"
               />
             ) : (
-              <Globe className="h-5 w-5 text-[var(--text-muted)] shrink-0" />
+              <Globe className="h-5 w-5 text-[var(--text-muted)] shrink-0 mt-1" />
             )}
-            <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-[var(--text)] truncate">
-              {site.name}
-            </h1>
-            <StatusBadge status={site.status} />
+            <div className="min-w-0 space-y-1.5">
+              <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-[var(--text)] break-words">
+                {site.name}
+              </h1>
+              <StatusBadge status={site.status} />
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <a
               href={site.url}
               target="_blank"
               rel="noreferrer"
-              className="mono text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)] flex items-center gap-1.5 transition-colors"
+              className="mono text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)] flex items-center gap-1.5 transition-colors min-w-0 max-w-full"
             >
-              <span>{site.url}</span>
-              <ExternalLink className="h-3 w-3" />
+              <span className="truncate">{site.url}</span>
+              <ExternalLink className="h-3 w-3 shrink-0" />
             </a>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0 no-print">
+        <div className="flex flex-col sm:flex-row w-full sm:w-auto items-stretch sm:items-center gap-2.5 shrink-0 no-print [&_button]:w-full sm:[&_button]:w-auto">
           <RunCheckButton siteId={site.id} />
 
-          <form action={actionPauseSite.bind(null, site.id, !site.pausedAt)}>
+          <form action={actionPauseSite.bind(null, site.id, !site.pausedAt)} className="w-full sm:w-auto">
             <Button
               type="submit"
               variant="secondary"
@@ -322,11 +360,11 @@ export default async function SitePage({
                     Interactive split-view between accepted baseline and latest captured Chromium frame.
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  {latestDiff && (
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0 w-full sm:w-auto [&_button]:w-full sm:[&_button]:w-auto">
+                  {latestDesktopDiff && (
                     <span className="px-2.5 py-1 rounded-md text-[12px] mono bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text)]">
-                      {(Number(latestDiff.differenceRatio) * 100).toFixed(2)}% pixel diff
-                      {latestDiff.aboveThreshold ? (
+                      {(Number(latestDesktopDiff.differenceRatio) * 100).toFixed(2)}% pixel diff
+                      {latestDesktopDiff.aboveThreshold ? (
                         <span className="ml-1 text-[var(--warning)] font-bold">· Above threshold</span>
                       ) : (
                         <span className="ml-1 text-[var(--healthy)]">· Nominal</span>
@@ -346,7 +384,7 @@ export default async function SitePage({
                 afterSrc={`/api/media/snapshot/${currentDesktop.id}`}
               />
 
-              {latestDiff?.diffStorageKey && (
+              {latestDesktopDiff?.diffStorageKey && (
                 <div className="space-y-3 pt-4 border-t border-[var(--border)]">
                   <h4 className="text-[13px] font-medium text-[var(--text-muted)]">
                     Differential Heatmap (Pixel Diff)
@@ -354,7 +392,7 @@ export default async function SitePage({
                   <div className="rounded-xl border border-[var(--border)] bg-black overflow-hidden max-w-2xl">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`/api/media/diff/${latestDiff.id}`}
+                      src={`/api/media/diff/${latestDesktopDiff.id}`}
                       alt="Visual diff heatmap"
                       className="w-full h-auto"
                     />
@@ -412,7 +450,7 @@ export default async function SitePage({
                       <span>Active</span>
                     </label>
 
-                    <div className="w-28">
+                    <div className="w-full sm:w-32 min-w-0">
                       <Select
                         name="interval"
                         defaultValue={
@@ -443,34 +481,42 @@ export default async function SitePage({
                 Add DOM Element Assertion
               </h3>
               <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
-                Ensure crucial interactive elements (e.g. checkout buttons, forms, nav links) remain rendered and clickable.
+                {ctx.plan.browserMonitoring
+                  ? "Ensure crucial interactive elements (e.g. checkout buttons, forms, nav links) remain rendered and clickable."
+                  : "Element monitors run inside Chromium and are available on Freelancer and above."}
               </p>
             </div>
 
-            <form action={actionAddElementMonitor.bind(null, site.id)} className="space-y-4">
-              <div>
-                <Label htmlFor="selector">CSS Selector</Label>
-                <Input
-                  id="selector"
-                  name="selector"
-                  placeholder="button.checkout, #submit-order"
-                  className="mono text-[13px]"
-                />
-              </div>
+            {ctx.plan.browserMonitoring ? (
+              <form action={actionAddElementMonitor.bind(null, site.id)} className="space-y-4">
+                <div>
+                  <Label htmlFor="selector">CSS Selector</Label>
+                  <Input
+                    id="selector"
+                    name="selector"
+                    placeholder="button.checkout, #submit-order"
+                    className="mono"
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="expectedText">Expected Text (optional)</Label>
-                <Input
-                  id="expectedText"
-                  name="expectedText"
-                  placeholder="Checkout, Order Now"
-                />
-              </div>
+                <div>
+                  <Label htmlFor="expectedText">Expected Text (optional)</Label>
+                  <Input
+                    id="expectedText"
+                    name="expectedText"
+                    placeholder="Checkout, Order Now"
+                  />
+                </div>
 
-              <Button type="submit" variant="secondary">
-                Add element check
+                <Button type="submit" variant="secondary">
+                  Add element check
+                </Button>
+              </form>
+            ) : (
+              <Button type="button" variant="secondary" disabled>
+                Requires Freelancer
               </Button>
-            </form>
+            )}
           </div>
         </div>
       )}
@@ -520,7 +566,8 @@ export default async function SitePage({
       {tab === "history" && (
         <div className="space-y-4">
           <div className="hidden md:block overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xs">
-            <table className="w-full text-left border-collapse text-[13px]">
+            <div className="overflow-x-auto no-scrollbar max-w-full">
+            <table className="w-full min-w-[540px] text-left border-collapse text-[13px]">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--bg-elevated)]/60 text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
                   <th className="py-3 px-4">Timestamp</th>
@@ -551,6 +598,7 @@ export default async function SitePage({
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Mobile History Cards */}

@@ -8,7 +8,11 @@ export async function POST(request: Request) {
   try {
     const result = await handleStripeWebhook(raw, signature);
     return NextResponse.json(result);
-  } catch {
-    return NextResponse.json({ error: "invalid webhook" }, { status: 400 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (/signature|No signatures/i.test(message)) {
+      return NextResponse.json({ error: "invalid signature" }, { status: 400 });
+    }
+    return NextResponse.json({ error: "webhook processing failed" }, { status: 500 });
   }
 }

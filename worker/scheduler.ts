@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { monitors, sites, systemHeartbeats } from "@/db/schema";
 import { enqueueJob, hasActiveJob, hasJobCreatedSince } from "@/server/jobs";
 import { logger } from "@/lib/logger";
-import { getPlanLimits } from "@/lib/plans";
+import { entitledPlanId, getPlanLimits } from "@/lib/plans";
 import { subscriptions } from "@/db/schema";
 import { utcHourStart } from "@/lib/schedule";
 
@@ -44,13 +44,22 @@ export async function tickScheduler() {
         .where(eq(monitors.id, row.monitor.id));
       continue;
     }
-    if (await hasActiveJob(row.monitor.id)) continue;
+    if (await hasActiveJob(row.monitor.id)) {
+      await db
+        .update(monitors)
+        .set({
+          nextRunAt: new Date(Date.now() + 30_000),
+          updatedAt: new Date(),
+        })
+        .where(eq(monitors.id, row.monitor.id));
+      continue;
+    }
     const [sub] = await db
       .select()
       .from(subscriptions)
       .where(eq(subscriptions.organizationId, row.monitor.organizationId))
       .limit(1);
-    const plan = getPlanLimits(sub?.planId ?? "free");
+    const plan = getPlanLimits(entitledPlanId(sub?.planId, sub?.status));
     if (row.monitor.type !== "HTTP" && !plan.browserMonitoring) {
       await db
         .update(monitors)

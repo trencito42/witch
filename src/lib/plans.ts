@@ -110,6 +110,18 @@ export function getPlanLimits(planId: string | null | undefined): PlanLimits {
   return PLANS.free;
 }
 
+export function subscriptionGrantsEntitlements(status: string | null | undefined) {
+  return !status || ["active", "trialing", "past_due"].includes(status);
+}
+
+export function entitledPlanId(
+  planId: string | null | undefined,
+  status: string | null | undefined,
+): PlanId {
+  if (!subscriptionGrantsEntitlements(status)) return "free";
+  return getPlanLimits(planId).id;
+}
+
 export function canCreateSite(planId: string, currentSiteCount: number) {
   const limits = getPlanLimits(planId);
   return currentSiteCount < limits.maxSites;

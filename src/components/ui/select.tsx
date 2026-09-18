@@ -16,7 +16,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           className={cn(
-            "h-9 w-full appearance-none rounded-md border bg-[var(--bg-elevated)] pl-3 pr-8 text-[13px] text-[var(--text)] transition-all duration-150 cursor-pointer",
+            "h-11 w-full appearance-none rounded-md border bg-[var(--bg-elevated)] pl-3 pr-8 text-[var(--text)] transition-all duration-150 cursor-pointer",
             "hover:border-[var(--border-strong)]",
             "focus-visible:outline-none focus-visible:border-[var(--border-focus)] focus-visible:ring-1 focus-visible:ring-[var(--border-focus)] focus-visible:bg-[var(--bg-card)]",
             "disabled:opacity-40 disabled:cursor-not-allowed",
@@ -24,6 +24,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
               ? "border-[var(--critical)] focus-visible:border-[var(--critical)] focus-visible:ring-[var(--critical)]"
               : "border-[var(--border)]",
             className,
+            "text-[16px] md:h-9 md:text-[13px]",
           )}
           {...props}
         >

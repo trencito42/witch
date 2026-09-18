@@ -113,7 +113,7 @@ export default async function OverviewPage() {
                     ? "Everything is quiet."
                     : `${attention.length} ${attention.length === 1 ? "site requires" : "sites require"} attention.`}
               </h1>
-              <p className="text-[13px] sm:text-[14px] text-[var(--text-muted)] max-w-xl leading-relaxed">
+              <p className="text-[14px] text-[var(--text-muted)] max-w-xl leading-relaxed">
                 {orgSites.length === 0
                   ? "Connect your first web service to initiate automated synthetic monitoring and visual regression detection."
                   : attention.length === 0
@@ -123,7 +123,7 @@ export default async function OverviewPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
+          <div className="flex w-full sm:w-auto items-stretch sm:items-center gap-3 shrink-0 self-stretch md:self-center [&_a]:w-full [&_button]:w-full sm:[&_button]:w-auto">
             <Link href="/sites">
               <Button
                 variant="primary"
@@ -159,29 +159,25 @@ export default async function OverviewPage() {
               indicator="neutral"
             />
             <MetricCard
-              label="Healthy"
+              label="Healthy sites"
               value={healthy}
               indicator="healthy"
-              secondary={
-                <span className="text-[var(--healthy)] flex items-center gap-1">
-                  <StatusDot status="HEALTHY" size="sm" /> 100% stable
-                </span>
-              }
+              secondary={`${orgSites.length ? Math.round((healthy / orgSites.length) * 100) : 0}% of workspace`}
             />
             <MetricCard
-              label="Open Issues"
+              label="Sites needing attention"
               value={attention.length}
               indicator={attention.length > 0 ? "critical" : "neutral"}
               secondary={
                 attention.length > 0 ? (
-                  <span className="text-[var(--critical)]">attention needed</span>
+                  <span className="text-[var(--critical)]">down or degraded</span>
                 ) : (
                   <span className="text-[var(--text-muted)]">none</span>
                 )
               }
             />
             <MetricCard
-              label="30d Avg Uptime"
+              label="Workspace 30d HTTP uptime"
               value={`${uptime.toFixed(2)}%`}
               indicator="healthy"
               secondary={avgLatency ? `${avgLatency}ms avg` : undefined}

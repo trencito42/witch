@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     command: npm run start
     ports:
-      - "3003:3003"
+      - "127.0.0.1:3003:3003"
     env_file:
       - .env
     extra_hosts:
@@ -13,6 +13,18 @@ services:
     volumes:
       - ./storage:/app/storage
     restart: unless-stopped
+    stop_grace_period: 40s
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3003/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
     depends_on: []
 
   worker:
@@ -48,7 +60,7 @@ services:
       MYSQL_PASSWORD: witch
       MYSQL_ROOT_PASSWORD: witch
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - witch-mysql:/var/lib/mysql
 
