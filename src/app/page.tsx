@@ -179,8 +179,9 @@ export default function HomePage() {
           fill
           priority
           sizes="100vw"
-          className="object-cover object-top opacity-[0.58]"
+          className="object-cover object-top"
         />
+        <span className="landing-atmosphere-fade" />
         <span className="landing-star left-[12%] top-[18%] [animation-delay:0s]" />
         <span className="landing-star right-[14%] top-[22%] [animation-delay:2.4s]" />
         <span className="landing-star left-[22%] top-[48%] [animation-delay:4.1s]" />
