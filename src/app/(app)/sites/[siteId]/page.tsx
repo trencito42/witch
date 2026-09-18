@@ -314,8 +314,10 @@ export default async function SitePage({
                       className="w-full h-full object-cover object-top"
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-[12px] text-[var(--text-faint)]">
-                      Snapshot pending
+                    <div className="flex items-center justify-center h-full px-4 text-center text-[12px] text-[var(--text-faint)]">
+                      {ctx.plan.browserMonitoring
+                        ? "Snapshot pending"
+                        : "Visual snapshots require Freelancer or above"}
                     </div>
                   )}
                 </div>
@@ -335,8 +337,10 @@ export default async function SitePage({
                       className="w-full h-full object-contain object-top"
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-[12px] text-[var(--text-faint)]">
-                      Snapshot pending
+                    <div className="flex items-center justify-center h-full px-4 text-center text-[12px] text-[var(--text-faint)]">
+                      {ctx.plan.browserMonitoring
+                        ? "Snapshot pending"
+                        : "Visual snapshots require Freelancer or above"}
                     </div>
                   )}
                 </div>
@@ -402,9 +406,25 @@ export default async function SitePage({
             </div>
           ) : (
             <EmptyState
-              title="Visual baselines pending"
-              description="Visual regression baselines appear automatically after the first successful Chromium browser check completes."
-              action={<RunCheckButton siteId={site.id} />}
+              title={
+                ctx.plan.browserMonitoring
+                  ? "Visual baselines pending"
+                  : "Visual monitoring is not on Free"
+              }
+              description={
+                ctx.plan.browserMonitoring
+                  ? "Visual regression baselines appear automatically after the first successful Chromium browser check completes."
+                  : "Free runs HTTP and TLS checks only. Upgrade to Freelancer or above to capture desktop and mobile Chromium snapshots."
+              }
+              action={
+                ctx.plan.browserMonitoring ? (
+                  <RunCheckButton siteId={site.id} />
+                ) : (
+                  <Link href="/settings?tab=billing">
+                    <Button variant="primary">View plans</Button>
+                  </Link>
+                )
+              }
             />
           )}
         </div>

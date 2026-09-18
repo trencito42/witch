@@ -17,9 +17,9 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed.ts",
-    "worker": "tsx worker/index.ts",
-    "scheduler": "tsx worker/scheduler.ts",
-    "worker:all": "tsx worker/combined.ts",
+    "worker": "tsx --require ./worker/register-server-only.cjs worker/index.ts",
+    "scheduler": "tsx --require ./worker/register-server-only.cjs worker/scheduler.ts",
+    "worker:all": "tsx --require ./worker/register-server-only.cjs worker/combined.ts",
     "fixture": "tsx scripts/fixture-server.ts",
     "promote-admin": "tsx scripts/promote-admin.ts"
   },
