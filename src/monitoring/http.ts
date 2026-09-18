@@ -1,4 +1,3 @@
-import tls from "node:tls";
 import { getEnv } from "@/lib/env";
 import {
   assertPublicHttpUrl,
@@ -6,7 +5,7 @@ import {
   sanitizeUrlForLog,
   UnsafeUrlError,
 } from "@/lib/safe-url";
-import { fetchPinned, type PinnedResponse } from "@/lib/pinned-fetch";
+import { fetchPinned, readPinnedTlsExpiry, RequestTimeoutError, type PinnedResponse } from "@/lib/pinned-fetch";
 
 export type HttpCheckResult = {
   success: boolean;
@@ -23,30 +22,6 @@ export type HttpCheckResult = {
   sslExpiresAt: Date | null;
   headers: Record<string, string>;
 };
-
-async function readTlsExpiry(hostname: string, port: number): Promise<Date | null> {
-  return new Promise((resolve) => {
-    const socket = tls.connect(
-      {
-        host: hostname,
-        port,
-        servername: hostname,
-        timeout: 5000,
-      },
-      () => {
-        const cert = socket.getPeerCertificate();
-        socket.end();
-        if (cert?.valid_to) resolve(new Date(cert.valid_to));
-        else resolve(null);
-      },
-    );
-    socket.on("error", () => resolve(null));
-    socket.on("timeout", () => {
-      socket.destroy();
-      resolve(null);
-    });
-  });
-}
 
 export async function runHttpCheck(targetUrl: string): Promise<HttpCheckResult> {
   const startedAt = new Date();
@@ -67,7 +42,7 @@ export async function runHttpCheck(targetUrl: string): Promise<HttpCheckResult> 
       resolvedIp = validated.addresses[0] ?? null;
       const parsed = new URL(validated.href);
       if (parsed.protocol === "https:") {
-        sslExpiresAt = await readTlsExpiry(parsed.hostname, parsed.port ? Number(parsed.port) : 443);
+        sslExpiresAt = await readPinnedTlsExpiry(validated.href);
         sslValid = sslExpiresAt ? sslExpiresAt.getTime() > Date.now() : true;
       } else {
         sslValid = null;
@@ -84,7 +59,7 @@ export async function runHttpCheck(targetUrl: string): Promise<HttpCheckResult> 
           },
         });
       } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") throw error;
+        if (error instanceof RequestTimeoutError) throw error;
         throw error;
       }
 
@@ -130,7 +105,13 @@ export async function runHttpCheck(targetUrl: string): Promise<HttpCheckResult> 
     const message = error instanceof Error ? error.message : "HTTP check failed";
     let errorCode = "HTTP_FAILURE";
     if (error instanceof UnsafeUrlError) errorCode = "UNSAFE_URL";
-    if (error instanceof Error && error.name === "AbortError") errorCode = "TIMEOUT";
+    if (
+      error instanceof RequestTimeoutError ||
+      (error instanceof Error && error.name === "AbortError") ||
+      message.toLowerCase().includes("timed out")
+    ) {
+      errorCode = "TIMEOUT";
+    }
     if (message.toLowerCase().includes("certificate") || message.toLowerCase().includes("ssl")) {
       errorCode = "SSL_ERROR";
     }

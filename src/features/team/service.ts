@@ -1,18 +1,20 @@
 import "server-only";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   organizationInvitations,
   organizationMembers,
   organizations,
+  subscriptions,
   users,
 } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { hashApiKey, randomToken } from "@/lib/crypto";
-import { canInviteMember } from "@/lib/plans";
+import { canInviteMember, getPlanLimits } from "@/lib/plans";
 import { sendInvitationEmail } from "@/emails/send";
 import { appUrl } from "@/lib/env";
 import { writeAudit } from "@/server/audit";
+import { findMembership } from "@/server/organizations";
 import type { OrgContext } from "@/server/tenancy";
 import { emailSchema } from "@/validation";
 import type { OrgRole } from "@/lib/constants";
@@ -32,16 +34,46 @@ export async function listMembers(organizationId: string) {
     .where(eq(organizationMembers.organizationId, organizationId));
 }
 
+export async function pendingInviteCount(organizationId: string) {
+  const [row] = await db
+    .select({ value: count() })
+    .from(organizationInvitations)
+    .where(
+      and(
+        eq(organizationInvitations.organizationId, organizationId),
+        isNull(organizationInvitations.acceptedAt),
+        isNull(organizationInvitations.revokedAt),
+        gt(organizationInvitations.expiresAt, new Date()),
+      ),
+    );
+  return Number(row?.value ?? 0);
+}
+
 export async function inviteMember(ctx: OrgContext, emailRaw: string, role: OrgRole) {
   const email = emailSchema.parse(emailRaw).toLowerCase();
   if (role === "OWNER") throw new Error("Cannot invite another owner.");
   const members = await listMembers(ctx.organizationId);
-  if (!canInviteMember(ctx.plan.id, members.length)) {
+  const pending = await pendingInviteCount(ctx.organizationId);
+  if (!canInviteMember(ctx.plan.id, members.length + pending)) {
     throw new Error(`The ${ctx.plan.name} plan allows ${ctx.plan.maxMembers} member(s).`);
   }
   if (members.some((member) => member.email.toLowerCase() === email)) {
     throw new Error("That person is already a member.");
   }
+  const [existingInvite] = await db
+    .select({ id: organizationInvitations.id })
+    .from(organizationInvitations)
+    .where(
+      and(
+        eq(organizationInvitations.organizationId, ctx.organizationId),
+        eq(organizationInvitations.email, email),
+        isNull(organizationInvitations.acceptedAt),
+        isNull(organizationInvitations.revokedAt),
+        gt(organizationInvitations.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
+  if (existingInvite) throw new Error("An invitation is already pending for that email.");
   const token = randomToken(24);
   const id = newId();
   await db.insert(organizationInvitations).values({
@@ -172,13 +204,26 @@ export async function acceptInvitation(userId: string, email: string, token: str
   if (invite.email.toLowerCase() !== email.toLowerCase()) {
     throw new Error("This invitation was sent to a different email address.");
   }
-  await db.insert(organizationMembers).values({
-    id: newId(),
-    organizationId: invite.organizationId,
-    userId,
-    role: invite.role,
-    createdAt: new Date(),
-  });
+  const members = await memberCount(invite.organizationId);
+  const [sub] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.organizationId, invite.organizationId))
+    .limit(1);
+  const plan = getPlanLimits(sub?.planId ?? "free");
+  if (!canInviteMember(plan.id, members)) {
+    throw new Error(`The ${plan.name} plan allows ${plan.maxMembers} member(s).`);
+  }
+  const existing = await findMembership(userId, invite.organizationId);
+  if (!existing) {
+    await db.insert(organizationMembers).values({
+      id: newId(),
+      organizationId: invite.organizationId,
+      userId,
+      role: invite.role,
+      createdAt: new Date(),
+    });
+  }
   await db
     .update(organizationInvitations)
     .set({ acceptedAt: new Date() })

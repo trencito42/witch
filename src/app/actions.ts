@@ -8,13 +8,13 @@ import { createSite, deleteSite, pauseSite, queueManualCheck, getSiteForOrg } fr
 import { acknowledgeIncident, ignoreIncident, resolveIncident } from "@/features/incidents/service";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { jobs, monitors, sites, visualSnapshots, organizations, users, alertChannels } from "@/db/schema";
+import { jobs, monitors, sites, visualSnapshots, organizations, users, alertChannels, sessions } from "@/db/schema";
 import { writeAudit } from "@/server/audit";
 import { INTERVALS_SECONDS } from "@/lib/constants";
 import { minIntervalForMonitor, canUseEmailAlerts } from "@/lib/plans";
 import { isValidDiscordWebhookUrl } from "@/lib/discord";
 import { newId } from "@/lib/ids";
-import { cssSelectorSchema, emailSchema, nameSchema, orgNameSchema, passwordSchema } from "@/validation";
+import { cssSelectorSchema, emailSchema, nameSchema, orgNameSchema, orgRoleSchema, passwordSchema } from "@/validation";
 import {
   changeRole,
   inviteMember,
@@ -23,13 +23,14 @@ import {
   revokeInvitation,
   transferOwnership,
   renameOrganization,
+  memberCount,
 } from "@/features/team/service";
+import { findOrganizationsForUser } from "@/server/organizations";
 import { createApiKey, revokeApiKey } from "@/features/api-keys/service";
 import { createCheckoutSession, createPortalSession } from "@/billing/stripe";
 import type { PlanId } from "@/lib/plans";
 import { auth } from "@/auth";
 import { headers } from "next/headers";
-import type { OrgRole } from "@/lib/constants";
 
 function formString(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -87,7 +88,12 @@ export async function actionUpdateSite(siteId: string, formData: FormData) {
   const sensitivity = z.enum(["LOW", "MEDIUM", "HIGH"]).parse(formString(formData, "visualSensitivity"));
   await db
     .update(sites)
-    .set({ name, visualSensitivity: sensitivity, updatedAt: new Date() })
+    .set({
+      name,
+      visualSensitivity: sensitivity,
+      statusPageVisible: formData.get("statusPageVisible") === "on",
+      updatedAt: new Date(),
+    })
     .where(and(eq(sites.id, siteId), eq(sites.organizationId, ctx.organizationId)));
   revalidatePath(`/sites/${siteId}`);
 }
@@ -223,7 +229,7 @@ export async function actionRenameWorkspace(formData: FormData) {
 export async function actionInvite(formData: FormData) {
   const ctx = await requireOrgContext();
   assertAdmin(ctx);
-  await inviteMember(ctx, formString(formData, "email"), formString(formData, "role") as OrgRole);
+  await inviteMember(ctx, formString(formData, "email"), orgRoleSchema.parse(formString(formData, "role")));
   revalidatePath("/team");
 }
 
@@ -241,10 +247,10 @@ export async function actionRemoveMember(id: string) {
   revalidatePath("/team");
 }
 
-export async function actionChangeRole(id: string, role: OrgRole) {
+export async function actionChangeRole(id: string, role: string) {
   const ctx = await requireOrgContext();
   assertAdmin(ctx);
-  await changeRole(ctx, id, role);
+  await changeRole(ctx, id, orgRoleSchema.parse(role));
   revalidatePath("/team");
 }
 
@@ -315,6 +321,30 @@ export async function actionChangePassword(formData: FormData) {
 }
 
 export async function actionSignOut() {
+  await auth.api.signOut({ headers: await headers() });
+  redirect("/login");
+}
+
+export async function actionRevokeSession(sessionId: string) {
+  const ctx = await requireOrgContext();
+  await db.delete(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.userId, ctx.userId)));
+  revalidatePath("/settings");
+}
+
+export async function actionDeleteAccount() {
+  const ctx = await requireOrgContext();
+  const memberships = await findOrganizationsForUser(ctx.userId);
+  for (const org of memberships.filter((item) => item.role === "OWNER")) {
+    const n = await memberCount(org.id);
+    if (n > 1) {
+      throw new Error("Transfer ownership of every workspace before deleting your account.");
+    }
+    const { getStorage } = await import("@/storage");
+    await getStorage().deletePrefix(org.id);
+    await db.delete(organizations).where(eq(organizations.id, org.id));
+  }
+  await writeAudit({ action: "account.deleted", actorUserId: ctx.userId });
+  await db.delete(users).where(eq(users.id, ctx.userId));
   await auth.api.signOut({ headers: await headers() });
   redirect("/login");
 }

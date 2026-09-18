@@ -61,6 +61,12 @@ export async function createCheckoutSession(input: {
     .from(subscriptions)
     .where(eq(subscriptions.organizationId, input.organizationId))
     .limit(1);
+  const hasLiveSubscription =
+    Boolean(sub?.stripeSubscriptionId) &&
+    !["canceled", "incomplete_expired"].includes(sub?.status ?? "");
+  if (hasLiveSubscription) {
+    return createPortalSession(input.organizationId);
+  }
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",

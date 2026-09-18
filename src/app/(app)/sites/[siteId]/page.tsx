@@ -313,6 +313,10 @@ export default async function SitePage({
                 <option value="HIGH">High</option>
               </select>
             </div>
+            <label className="flex items-center gap-2 text-[13px]">
+              <input type="checkbox" name="statusPageVisible" defaultChecked={site.statusPageVisible} />
+              Show on public status page
+            </label>
             <p className="text-[12px] text-[var(--text-muted)]">URL changes are not allowed after creation to protect SSRF controls. Add a new site instead.</p>
             <Button>Save</Button>
           </form>

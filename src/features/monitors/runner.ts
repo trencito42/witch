@@ -351,12 +351,12 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
   const connectivityFailure = !result.success && result.errorCode !== "SCREENSHOT_LIMIT";
   if (connectivityFailure && failures === 1) {
     await enqueueJob({
-      type: "CONFIRM_CHECK",
+      type: "BROWSER_CHECK",
       organizationId: site.organizationId,
       siteId: site.id,
       monitorId: monitor.id,
       runAt: new Date(Date.now() + env.CHECK_CONFIRMATION_DELAY_SECONDS * 1000),
-      payload: { reason: "browser-confirm" },
+      payload: { trigger: "confirm", reason: "browser-confirm" },
       maxAttempts: 2,
     });
   }

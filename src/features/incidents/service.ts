@@ -70,7 +70,13 @@ export async function applyIssues(input: {
             SEVERITY_RANK[issue.severity] > SEVERITY_RANK[existing.severity]
               ? issue.severity
               : existing.severity,
-          metadata: issue.metadata ?? existing.metadata,
+          metadata: {
+            ...(existing.metadata && typeof existing.metadata === "object"
+              ? (existing.metadata as Record<string, unknown>)
+              : {}),
+            ...(issue.metadata ?? {}),
+            evidence: issue.evidence.map(sanitizeEvidence),
+          },
           updatedAt: new Date(),
         })
         .where(eq(incidents.id, existing.id));

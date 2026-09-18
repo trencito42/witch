@@ -6,9 +6,15 @@ import { hashApiKey, randomToken } from "@/lib/crypto";
 import { newId } from "@/lib/ids";
 import { writeAudit } from "@/server/audit";
 import type { OrgContext } from "@/server/tenancy";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { getPlanLimits } from "@/lib/plans";
 
 export async function createApiKey(ctx: OrgContext, name: string) {
+  await enforceRateLimit({
+    key: `api-key:${ctx.organizationId}:${ctx.userId}`,
+    limit: 8,
+    windowSeconds: 3600,
+  });
   const existing = await db
     .select()
     .from(apiKeys)

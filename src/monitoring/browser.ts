@@ -1,12 +1,12 @@
 import { chromium, type Browser, type BrowserContext } from "playwright";
 import { getEnv } from "@/lib/env";
-import { VIEWPORTS, MAX_CONSOLE_EVENTS, MAX_FAILED_REQUESTS } from "@/lib/constants";
+import { VIEWPORTS, MAX_CONSOLE_EVENTS, MAX_FAILED_REQUESTS, MAX_BROWSER_REQUESTS, MAX_BROWSER_BYTES, MAX_BROWSER_INFLIGHT, MAX_DOCUMENT_BYTES, MAX_SUBRESOURCE_BYTES } from "@/lib/constants";
 import { assertPublicHttpUrl, sanitizeUrlForLog, UnsafeUrlError } from "@/lib/safe-url";
 import { extractDomSignals, type DomSignals } from "./dom";
 import { ImageNormalizeError, normalizeScreenshot } from "./image";
 import { collectIgnoreRegionsInPage, ignoreRegionCollectorArgs } from "./masks";
 import type { IgnoreRegion } from "./regions";
-import { fetchPinned, publicHeadersFromRequest } from "@/lib/pinned-fetch";
+import { FetchBudget, fetchPinned, publicHeadersFromRequest } from "@/lib/pinned-fetch";
 import { stabilizePage } from "./stabilize";
 
 export type BrowserCheckResult = {
@@ -110,6 +110,7 @@ export async function runBrowserCheck(input: {
     });
     context.setDefaultTimeout(env.BROWSER_CHECK_TIMEOUT_MS);
     context.setDefaultNavigationTimeout(Math.min(env.BROWSER_CHECK_TIMEOUT_MS, 25_000));
+    const budget = new FetchBudget(MAX_BROWSER_REQUESTS, MAX_BROWSER_BYTES, MAX_BROWSER_INFLIGHT);
     await context.route("**/*", async (route) => {
       const request = route.request();
       const url = request.url();
@@ -127,11 +128,14 @@ export async function runBrowserCheck(input: {
         return;
       }
       try {
+        const isDocument = resourceType === "document";
         const pinned = await fetchPinned(url, {
           method: request.method(),
           headers: publicHeadersFromRequest(request.headers()),
           body: request.postDataBuffer(),
           timeoutMs: Math.min(env.BROWSER_CHECK_TIMEOUT_MS, 20_000),
+          maxBytes: isDocument ? MAX_DOCUMENT_BYTES : MAX_SUBRESOURCE_BYTES,
+          budget,
         });
         await route.fulfill({
           status: pinned.status,

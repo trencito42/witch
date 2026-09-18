@@ -38,7 +38,7 @@ export async function computeSiteMetrics(
   const [incidentStats] = await db
     .select({
       detected: count(),
-      resolved: sql<number>`sum(case when ${incidents.status} = 'RESOLVED' then 1 else 0 end)`,
+      resolved: sql<number>`sum(case when ${incidents.status} = 'RESOLVED' and ${incidents.resolvedAt} is not null and ${incidents.resolvedAt} >= ${from} and ${incidents.resolvedAt} <= ${to} then 1 else 0 end)`,
     })
     .from(incidents)
     .where(

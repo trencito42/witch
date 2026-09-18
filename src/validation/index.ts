@@ -27,3 +27,5 @@ export const cssSelectorSchema = z
   .min(1)
   .max(512)
   .refine((value) => !/[<>]/.test(value), "Selector cannot include HTML");
+
+export const orgRoleSchema = z.enum(["ADMIN", "MEMBER", "VIEWER"]);

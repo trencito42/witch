@@ -14,6 +14,7 @@ export type PlanLimits = {
   emailAlerts: boolean;
   reports: boolean;
   maxMembers: number;
+  maxWorkspaces: number;
   historyDays: number;
   priorityChecks: boolean;
   advancedReporting: boolean;
@@ -35,6 +36,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     emailAlerts: false,
     reports: false,
     maxMembers: 1,
+    maxWorkspaces: 1,
     historyDays: 7,
     priorityChecks: false,
     advancedReporting: false,
@@ -54,6 +56,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     emailAlerts: true,
     reports: true,
     maxMembers: 2,
+    maxWorkspaces: 2,
     historyDays: 30,
     priorityChecks: false,
     advancedReporting: false,
@@ -73,6 +76,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     emailAlerts: true,
     reports: true,
     maxMembers: 10,
+    maxWorkspaces: 5,
     historyDays: 90,
     priorityChecks: false,
     advancedReporting: true,
@@ -92,6 +96,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     emailAlerts: true,
     reports: true,
     maxMembers: 25,
+    maxWorkspaces: 10,
     historyDays: 180,
     priorityChecks: true,
     advancedReporting: true,
@@ -120,6 +125,20 @@ export function canUseVisualMonitoring(planId: string) {
 
 export function canInviteMember(planId: string, currentMemberCount: number) {
   return currentMemberCount < getPlanLimits(planId).maxMembers;
+}
+
+export function highestPlan(planIds: Array<string | null | undefined>): PlanId {
+  const rank: Record<PlanId, number> = { free: 0, freelancer: 1, agency: 2, agency_pro: 3 };
+  let best: PlanId = "free";
+  for (const id of planIds) {
+    const plan = getPlanLimits(id).id;
+    if (rank[plan] > rank[best]) best = plan;
+  }
+  return best;
+}
+
+export function canCreateWorkspace(planId: string, ownedWorkspaceCount: number) {
+  return ownedWorkspaceCount < getPlanLimits(planId).maxWorkspaces;
 }
 
 export function canUseReports(planId: string) {

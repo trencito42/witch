@@ -9,6 +9,7 @@ import {
 } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { writeAudit } from "./audit";
+import { canCreateWorkspace, getPlanLimits, highestPlan } from "@/lib/plans";
 
 function slugify(value: string) {
   return value
@@ -96,6 +97,20 @@ export async function createOrganizationForUser(input: {
   name: string;
   email?: string;
 }) {
+  const owned = await db
+    .select({
+      id: organizations.id,
+      planId: subscriptions.planId,
+    })
+    .from(organizationMembers)
+    .innerJoin(organizations, eq(organizations.id, organizationMembers.organizationId))
+    .innerJoin(subscriptions, eq(subscriptions.organizationId, organizations.id))
+    .where(and(eq(organizationMembers.userId, input.userId), eq(organizationMembers.role, "OWNER")));
+  const plan = highestPlan(owned.map((row) => row.planId));
+  const limits = getPlanLimits(plan);
+  if (!canCreateWorkspace(plan, owned.length)) {
+    throw new Error(`The ${limits.name} plan allows ${limits.maxWorkspaces} workspace(s). Upgrade to create more.`);
+  }
   const now = new Date();
   const orgId = newId();
   const slug = await uniqueSlug(slugify(input.name));

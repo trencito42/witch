@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   canCreateSite,
+  canCreateWorkspace,
   canUseBrowserMonitoring,
   getPlanLimits,
+  highestPlan,
   minIntervalForMonitor,
 } from "./plans";
 
@@ -21,5 +23,11 @@ describe("plan limits", () => {
     expect(minIntervalForMonitor("free", "HTTP")).toBe(1800);
     expect(minIntervalForMonitor("freelancer", "HTTP")).toBe(300);
     expect(getPlanLimits("nope").id).toBe("free");
+  });
+
+  it("caps free workspaces", () => {
+    expect(canCreateWorkspace("free", 1)).toBe(false);
+    expect(canCreateWorkspace("agency", 1)).toBe(true);
+    expect(highestPlan(["free", "freelancer"])).toBe("freelancer");
   });
 });

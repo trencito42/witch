@@ -43,7 +43,10 @@ export async function processAiAnalysis(incidentId: string, organizationId: stri
     filteredDifferenceRatio?: number;
   };
   const evidence = Array.isArray(meta.evidence) ? meta.evidence : [];
-  const images = incident.category === "VISUAL" ? await visualEvidenceImages(incident.siteId, organizationId) : undefined;
+  const images =
+    incident.category === "VISUAL"
+      ? await visualEvidenceImages(incident.siteId, organizationId, incident.monitorId)
+      : undefined;
   const result = await analyzeIncidentSafe({
     siteUrl: site?.url ?? "",
     monitorType: incident.category,
@@ -73,13 +76,21 @@ export async function processAiAnalysis(incidentId: string, organizationId: stri
   });
 }
 
-async function visualEvidenceImages(siteId: string, organizationId: string) {
+async function visualEvidenceImages(siteId: string, organizationId: string, monitorId: string | null) {
   const { visualDiffs, visualSnapshots } = await import("@/db/schema");
   const { desc } = await import("drizzle-orm");
   const [diff] = await db
     .select()
     .from(visualDiffs)
-    .where(and(eq(visualDiffs.siteId, siteId), eq(visualDiffs.organizationId, organizationId)))
+    .where(
+      monitorId
+        ? and(
+            eq(visualDiffs.siteId, siteId),
+            eq(visualDiffs.organizationId, organizationId),
+            eq(visualDiffs.monitorId, monitorId),
+          )
+        : and(eq(visualDiffs.siteId, siteId), eq(visualDiffs.organizationId, organizationId)),
+    )
     .orderBy(desc(visualDiffs.createdAt))
     .limit(1);
   if (!diff) return undefined;

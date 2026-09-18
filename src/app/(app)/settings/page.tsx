@@ -10,6 +10,8 @@ import {
   actionCreateWorkspace,
   actionPortal,
   actionRevokeKey,
+  actionRevokeSession,
+  actionDeleteAccount,
   actionUpdateAccount,
   actionRenameWorkspace,
   actionAddDiscordWebhook,
@@ -101,6 +103,11 @@ export default async function SettingsPage() {
           {sub?.currentPeriodEnd ? ` Period ends ${sub.currentPeriodEnd.toISOString().slice(0, 10)}.` : ""}
         </p>
         {stripeEnabled() ? (
+          sub?.stripeSubscriptionId && !["canceled", "incomplete_expired"].includes(sub.status) ? (
+            <form action={actionPortal}>
+              <Button>Manage plan in Stripe</Button>
+            </form>
+          ) : (
           <div className="grid sm:grid-cols-2 gap-3">
             {(["freelancer", "agency", "agency_pro"] as PlanId[]).map((plan) => (
               <form key={plan} action={actionCheckout.bind(null, plan)}>
@@ -109,10 +116,8 @@ export default async function SettingsPage() {
                 </Button>
               </form>
             ))}
-            <form action={actionPortal}>
-              <Button className="w-full">Open billing portal</Button>
-            </form>
           </div>
+          )
         ) : (
           <p className="text-[13px] text-[var(--text-muted)]">
             Stripe credentials are not configured. The Free plan remains active.
@@ -215,9 +220,19 @@ export default async function SettingsPage() {
           </div>
           <Button variant="secondary">Change password</Button>
         </form>
-        <div className="mt-6 text-[12px] text-[var(--text-muted)]">
-          {userSessions.length} active session(s)
+        <div className="mt-6 text-[12px] text-[var(--text-muted)] space-y-2">
+          {userSessions.map((session) => (
+            <form key={session.id} action={actionRevokeSession.bind(null, session.id)} className="flex justify-between gap-2">
+              <span>
+                {session.ipAddress ?? "session"} · expires {session.expiresAt.toISOString().slice(0, 10)}
+              </span>
+              <Button variant="ghost">Revoke</Button>
+            </form>
+          ))}
         </div>
+        <form action={actionDeleteAccount} className="mt-8">
+          <Button variant="danger">Delete account</Button>
+        </form>
       </section>
 
       <section>

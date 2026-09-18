@@ -12,6 +12,7 @@ import { getPlanLimits } from "@/lib/plans";
 import { subscriptions } from "@/db/schema";
 import { sites } from "@/db/schema";
 import { getEnv } from "@/lib/env";
+import { JOB_RETENTION_DAYS } from "@/lib/constants";
 
 async function heartbeat(name: string, metadata?: Record<string, unknown>) {
   await db
@@ -112,6 +113,15 @@ async function cleanupRetention() {
       .delete(monitorChecks)
       .where(and(eq(monitorChecks.siteId, site.id), lte(monitorChecks.createdAt, cutoff)));
   }
+  const jobCutoff = new Date(Date.now() - JOB_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  await db
+    .delete(jobs)
+    .where(
+      and(
+        inArray(jobs.status, ["completed", "failed", "cancelled"]),
+        lte(jobs.createdAt, jobCutoff),
+      ),
+    );
 }
 
 export async function runWorkerLoop() {

@@ -100,13 +100,13 @@ export async function compareScreenshots(
     filteredDiff.data,
     width,
     height,
-    { threshold: settings.pixelThreshold, includeAA: false },
+    { threshold: settings.pixelThreshold, includeAA: false, diffMask: true },
   );
 
   const changedMap = Buffer.alloc(width * height);
   for (let i = 0; i < width * height; i += 1) {
     const idx = i << 2;
-    if (filteredDiff.data[idx] || filteredDiff.data[idx + 1] || filteredDiff.data[idx + 2]) {
+    if (filteredDiff.data[idx + 3] > 0) {
       changedMap[i] = 1;
     }
   }

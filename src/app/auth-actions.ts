@@ -9,6 +9,7 @@ import { emailSchema, nameSchema, passwordSchema } from "@/validation";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { persistDefaultOrganization } from "@/server/tenancy";
 import { writeAudit } from "@/server/audit";
+import { clientIpFromHeaders } from "@/lib/client-ip";
 
 export type AuthState = { error?: string; message?: string };
 
@@ -17,9 +18,7 @@ function formString(formData: FormData, key: string) {
 }
 
 async function clientIp() {
-  const h = await headers();
-  const forwarded = h.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || h.get("x-real-ip") || "unknown";
+  return clientIpFromHeaders(await headers());
 }
 
 function authError(error: unknown): AuthState {

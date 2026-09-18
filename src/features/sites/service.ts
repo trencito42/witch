@@ -188,6 +188,10 @@ export async function pauseSite(ctx: OrgContext, siteId: string, paused: boolean
 }
 
 export async function deleteSite(ctx: OrgContext, siteId: string) {
+  const site = await getSiteForOrg(ctx.organizationId, siteId);
+  if (!site) return;
+  const { getStorage } = await import("@/storage");
+  await getStorage().deletePrefix(`${ctx.organizationId}/${siteId}`);
   await db
     .delete(sites)
     .where(and(eq(sites.id, siteId), eq(sites.organizationId, ctx.organizationId)));

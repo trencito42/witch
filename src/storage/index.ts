@@ -1,5 +1,5 @@
 import "server-only";
-import { mkdir, readFile, unlink, writeFile, stat } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile, stat, rm } from "node:fs/promises";
 import path from "node:path";
 import { getEnv } from "@/lib/env";
 
@@ -7,6 +7,7 @@ export interface StorageAdapter {
   put(key: string, data: Buffer, contentType: string): Promise<void>;
   get(key: string): Promise<Buffer | null>;
   delete(key: string): Promise<void>;
+  deletePrefix(prefix: string): Promise<void>;
 }
 
 function assertSafeKey(key: string) {
@@ -48,6 +49,13 @@ class LocalStorage implements StorageAdapter {
     } catch {
       // already gone
     }
+  }
+
+  async deletePrefix(prefix: string) {
+    const safe = prefix.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    if (!safe || safe.includes("..")) throw new Error("Invalid storage prefix");
+    const full = this.resolve(safe);
+    await rm(full, { recursive: true, force: true });
   }
 }
 
