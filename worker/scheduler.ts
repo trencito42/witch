@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { monitors, sites, systemHeartbeats } from "@/db/schema";
 import { enqueueJob, hasActiveJob, hasJobCreatedSince } from "@/server/jobs";
 import { logger } from "@/lib/logger";
-import { entitledPlanId, getPlanLimits } from "@/lib/plans";
+import { getEffectivePlan } from "@/lib/plans";
 import { subscriptions } from "@/db/schema";
 import { utcHourStart } from "@/lib/schedule";
 
@@ -59,7 +59,7 @@ export async function tickScheduler() {
       .from(subscriptions)
       .where(eq(subscriptions.organizationId, row.monitor.organizationId))
       .limit(1);
-    const plan = getPlanLimits(entitledPlanId(sub?.planId, sub?.status));
+    const plan = getEffectivePlan(sub);
     if (row.monitor.type !== "HTTP" && !plan.browserMonitoring) {
       await db
         .update(monitors)

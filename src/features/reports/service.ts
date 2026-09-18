@@ -3,8 +3,7 @@ import { and, avg, count, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { incidents, monitorChecks, monitors, reports, reportItems, sites } from "@/db/schema";
 import { newId } from "@/lib/ids";
-import { canUseReports } from "@/lib/plans";
-import { getPlanLimits } from "@/lib/plans";
+import { canUseReports, getEffectivePlan } from "@/lib/plans";
 import { subscriptions } from "@/db/schema";
 import { enqueueJob } from "@/server/jobs";
 import { sendMonthlyReportEmail } from "@/emails/send";
@@ -108,7 +107,7 @@ export async function generateMonthlyReports(now = new Date()) {
       .from(subscriptions)
       .where(eq(subscriptions.organizationId, site.organizationId))
       .limit(1);
-    const plan = getPlanLimits(sub?.planId ?? "free");
+    const plan = getEffectivePlan(sub);
     if (!canUseReports(plan.id)) continue;
     const metrics = await computeSiteMetrics(
       site.organizationId,

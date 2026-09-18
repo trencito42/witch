@@ -1,13 +1,14 @@
 import "server-only";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { incidentEvents, incidents, sites } from "@/db/schema";
+import { incidentEvents, incidents, sites, subscriptions } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { enqueueJob } from "@/server/jobs";
 import type { ClassifiedIssue } from "@/monitoring/classify";
 import { shouldRecoverAfterSuccesses } from "@/monitoring/classify";
 import { sanitizeEvidence } from "@/lib/safe-url";
 import { aiEnabled } from "@/lib/env";
+import { canUseAiAnalysis, getEffectivePlan } from "@/lib/plans";
 
 const SEVERITY_RANK: Record<string, number> = {
   INFO: 0,
@@ -117,14 +118,21 @@ export async function applyIssues(input: {
       payload: { kind: "detected" },
     });
     if (aiEnabled()) {
-      await enqueueJob({
-        type: "AI_ANALYSIS",
-        organizationId: input.organizationId,
-        siteId: input.siteId,
-        incidentId: id,
-        payload: { evidence: issue.evidence },
-        maxAttempts: 2,
-      });
+      const [sub] = await db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.organizationId, input.organizationId))
+        .limit(1);
+      if (canUseAiAnalysis(getEffectivePlan(sub).id)) {
+        await enqueueJob({
+          type: "AI_ANALYSIS",
+          organizationId: input.organizationId,
+          siteId: input.siteId,
+          incidentId: id,
+          payload: { evidence: issue.evidence },
+          maxAttempts: 2,
+        });
+      }
     }
     createdOrUpdated.push(id);
   }

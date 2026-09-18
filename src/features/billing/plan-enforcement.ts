@@ -1,15 +1,16 @@
 import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { monitors, sites } from "@/db/schema";
-import {
-  getPlanLimits,
-  minIntervalForMonitor,
-  type PlanId,
-} from "@/lib/plans";
+import { monitors, sites, subscriptions } from "@/db/schema";
+import { getEffectivePlan, minIntervalForMonitor } from "@/lib/plans";
 
-export async function applyPlanLimits(organizationId: string, planId: PlanId) {
-  const plan = getPlanLimits(planId);
+export async function applyPlanLimits(organizationId: string) {
+  const [sub] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.organizationId, organizationId))
+    .limit(1);
+  const plan = getEffectivePlan(sub);
   const orgSites = await db
     .select()
     .from(sites)

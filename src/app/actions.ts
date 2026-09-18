@@ -6,15 +6,16 @@ import { z } from "zod";
 import { requireOrgContext, assertWritable, assertAdmin, setActiveOrganization } from "@/server/tenancy";
 import { createSite, deleteSite, pauseSite, queueManualCheck, getSiteForOrg } from "@/features/sites/service";
 import { acknowledgeIncident, ignoreIncident, resolveIncident } from "@/features/incidents/service";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { jobs, monitors, sites, visualSnapshots, organizations, users, alertChannels, sessions } from "@/db/schema";
 import { writeAudit } from "@/server/audit";
 import { INTERVALS_SECONDS } from "@/lib/constants";
 import { minIntervalForMonitor, canUseEmailAlerts, canUseBrowserMonitoring } from "@/lib/plans";
 import { isValidDiscordWebhookUrl } from "@/lib/discord";
+import { logger } from "@/lib/logger";
 import { newId } from "@/lib/ids";
-import { cssSelectorSchema, emailSchema, nameSchema, orgNameSchema, orgRoleSchema, passwordSchema } from "@/validation";
+import { cssSelectorSchema, emailSchema, nameSchema, orgNameSchema, orgRoleSchema, passwordSchema, slugSchema } from "@/validation";
 import {
   changeRole,
   inviteMember,
@@ -248,12 +249,29 @@ export async function actionUpdateAlertSettings(formData: FormData) {
 export async function actionUpdateStatusPage(formData: FormData) {
   const ctx = await requireOrgContext();
   assertAdmin(ctx);
+  const enabled = formData.get("statusPageEnabled") === "on";
+  const rawSlug = formString(formData, "statusPageSlug");
+  const rawHeadline = formString(formData, "statusPageHeadline");
+  const statusPageSlug = rawSlug || enabled ? slugSchema.parse(rawSlug) : null;
+  const statusPageHeadline = rawHeadline
+    ? z.string().trim().max(160, "Headline is too long").parse(rawHeadline)
+    : null;
+  if (statusPageSlug) {
+    const existing = await db
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(and(eq(organizations.statusPageSlug, statusPageSlug), ne(organizations.id, ctx.organizationId)))
+      .limit(1);
+    if (existing[0]) {
+      throw new Error("That status page URL is already taken.");
+    }
+  }
   await db
     .update(organizations)
     .set({
-      statusPageEnabled: formData.get("statusPageEnabled") === "on",
-      statusPageSlug: formString(formData, "statusPageSlug") || null,
-      statusPageHeadline: formString(formData, "statusPageHeadline") || null,
+      statusPageEnabled: enabled,
+      statusPageSlug,
+      statusPageHeadline,
       updatedAt: new Date(),
     })
     .where(eq(organizations.id, ctx.organizationId));
@@ -379,17 +397,21 @@ export async function actionDeleteAccount() {
   for (const org of owned) {
     await cancelStripeSubscription(org.id);
   }
-  const { getStorage } = await import("@/storage");
-  const storage = getStorage();
-  for (const org of owned) {
-    await storage.deletePrefix(org.id);
-  }
   await db.transaction(async (tx) => {
     for (const org of owned) {
       await tx.delete(organizations).where(eq(organizations.id, org.id));
     }
     await tx.delete(users).where(eq(users.id, ctx.userId));
   });
+  const { getStorage } = await import("@/storage");
+  const storage = getStorage();
+  for (const org of owned) {
+    try {
+      await storage.deletePrefix(org.id);
+    } catch (error) {
+      logger.error({ err: error, organizationId: org.id }, "account delete: storage cleanup failed");
+    }
+  }
   await writeAudit({ action: "account.deleted", actorUserId: ctx.userId });
   await auth.api.signOut({ headers: await headers() });
   redirect("/login");

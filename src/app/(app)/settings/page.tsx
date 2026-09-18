@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "@/db";
 import { apiKeys, alertChannels, organizations, sessions, subscriptions } from "@/db/schema";
 import { requireOrgContext } from "@/server/tenancy";
+import { getSession } from "@/server/session";
+import { parseUserAgent } from "@/lib/user-agent";
 import { PageHeader } from "@/components/page-header";
 import {
   Button,
@@ -20,6 +22,7 @@ import {
   actionPortal,
   actionRevokeKey,
   actionRevokeSession,
+  actionSignOut,
   actionDeleteAccount,
   actionUpdateAccount,
   actionRenameWorkspace,
@@ -42,6 +45,9 @@ import {
   Trash2,
   ExternalLink,
   Mail,
+  Laptop,
+  Smartphone,
+  Tablet,
 } from "lucide-react";
 
 export default async function SettingsPage({
@@ -64,12 +70,20 @@ export default async function SettingsPage({
     .where(eq(subscriptions.organizationId, ctx.organizationId))
     .limit(1);
 
-  const keys = await db.select().from(apiKeys).where(eq(apiKeys.organizationId, ctx.organizationId));
-  const userSessions = await db.select().from(sessions).where(eq(sessions.userId, ctx.userId));
-  const channels = await db
-    .select()
-    .from(alertChannels)
-    .where(eq(alertChannels.organizationId, ctx.organizationId));
+  const [sessionInfo, keys, userSessions, channels] = await Promise.all([
+    getSession(),
+    db.select().from(apiKeys).where(eq(apiKeys.organizationId, ctx.organizationId)),
+    db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.userId, ctx.userId))
+      .orderBy(desc(sessions.createdAt)),
+    db
+      .select()
+      .from(alertChannels)
+      .where(eq(alertChannels.organizationId, ctx.organizationId)),
+  ]);
+  const currentSessionId = sessionInfo?.session?.id;
 
   const tabItems = [
     { id: "general", label: "General", icon: <Building2 className="h-3.5 w-3.5" />, href: "/settings?tab=general" },
@@ -84,7 +98,7 @@ export default async function SettingsPage({
     <div className="space-y-8 max-w-4xl animate-spectral-fade">
       <PageHeader
         title="Settings"
-        description="Configure workspace surveillance parameters, alert destinations, billing, and API tokens."
+        description="Workspace, alerts, billing, and account."
       />
 
       {/* HORIZONTAL CATEGORY TABS */}
@@ -616,23 +630,74 @@ export default async function SettingsPage({
                 Active Browser Sessions ({userSessions.length})
               </h2>
               <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
-                Devices and browser sessions currently authenticated.
+                Devices and browser sessions currently authenticated to your account.
               </p>
             </div>
 
             <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)] divide-y divide-[var(--border)]">
-              {userSessions.map((session) => (
-                <div key={session.id} className="p-3.5 px-4 flex items-center justify-between gap-4 text-[12px]">
-                  <div className="mono text-[var(--text)]">
-                    {session.ipAddress ?? "Active browser"} · Expires {new Date(session.expiresAt).toLocaleDateString()}
+              {userSessions.map((session) => {
+                const device = parseUserAgent(session.userAgent);
+                const isCurrent = session.id === currentSessionId;
+                const ipText =
+                  session.ipAddress && session.ipAddress.trim()
+                    ? session.ipAddress.trim() === "127.0.0.1"
+                      ? "127.0.0.1 (Localhost)"
+                      : session.ipAddress.trim()
+                    : "Local / Direct";
+
+                return (
+                  <div
+                    key={session.id}
+                    className="p-3.5 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 text-[12px]"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)]">
+                        {device.deviceType === "mobile" ? (
+                          <Smartphone className="h-4 w-4" />
+                        ) : device.deviceType === "tablet" ? (
+                          <Tablet className="h-4 w-4" />
+                        ) : (
+                          <Laptop className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-[var(--text)] truncate">
+                            {device.label}
+                          </span>
+                          {isCurrent && (
+                            <Badge variant="healthy" size="sm">
+                              Current session
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-muted)] flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="mono">{ipText}</span>
+                          <span>·</span>
+                          <span>Signed in {new Date(session.createdAt).toLocaleDateString()}</span>
+                          <span>·</span>
+                          <span>Expires {new Date(session.expiresAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="self-end sm:self-center shrink-0">
+                      {isCurrent ? (
+                        <form action={actionSignOut}>
+                          <Button variant="ghost" size="sm" className="text-[var(--text-muted)] hover:text-[var(--text)]">
+                            Sign out
+                          </Button>
+                        </form>
+                      ) : (
+                        <form action={actionRevokeSession.bind(null, session.id)}>
+                          <Button variant="ghost" size="sm" className="text-[var(--critical)] hover:text-[var(--critical)]">
+                            Revoke
+                          </Button>
+                        </form>
+                      )}
+                    </div>
                   </div>
-                  <form action={actionRevokeSession.bind(null, session.id)}>
-                    <Button variant="ghost" size="sm" className="text-[var(--critical)]">
-                      Revoke
-                    </Button>
-                  </form>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
 

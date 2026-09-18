@@ -10,7 +10,7 @@ import {
 } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { hashApiKey, randomToken } from "@/lib/crypto";
-import { canInviteMember, getPlanLimits } from "@/lib/plans";
+import { canInviteMember, getEffectivePlan } from "@/lib/plans";
 import { sendInvitationEmail } from "@/emails/send";
 import { appUrl } from "@/lib/env";
 import { writeAudit } from "@/server/audit";
@@ -224,7 +224,7 @@ export async function acceptInvitation(userId: string, email: string, token: str
     .from(subscriptions)
     .where(eq(subscriptions.organizationId, invite.organizationId))
     .limit(1);
-  const plan = getPlanLimits(sub?.planId ?? "free");
+  const plan = getEffectivePlan(sub);
   if (!canInviteMember(plan.id, members)) {
     throw new Error(`The ${plan.name} plan allows ${plan.maxMembers} member(s).`);
   }

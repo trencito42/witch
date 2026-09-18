@@ -129,11 +129,11 @@ export default async function StatusPage({
               <div className="flex items-center sm:justify-end gap-1.5 text-[11px] font-mono text-[var(--text-faint)]">
                 <Clock className="w-3.5 h-3.5" />
                 <span>
-                  {fresh && freshestCheck
-                    ? `Last check ${freshestCheck.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                    : freshestCheck
-                      ? "Checks may be delayed"
-                      : "No checks recorded yet"}
+                  {freshestCheck
+                    ? fresh
+                      ? `Last checked ${Math.max(1, Math.round((Date.now() - freshestCheck.getTime()) / 60000))}m ago`
+                      : `Last checked ${freshestCheck.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
+                    : "No checks recorded yet"}
                 </span>
               </div>
               <div className="text-[12px] text-[var(--text-muted)] mt-0.5">

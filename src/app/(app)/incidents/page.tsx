@@ -52,7 +52,7 @@ export default async function IncidentsPage({
     <div className="space-y-6 animate-spectral-fade">
       <PageHeader
         title="Incidents"
-        description="Active anomalies, visual diff regressions, and historical telemetry issues."
+        description="Open issues, visual diffs, and recent recovered incidents."
       />
 
       {rawRows.length === 0 ? (

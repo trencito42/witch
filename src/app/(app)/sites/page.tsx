@@ -12,6 +12,7 @@ import {
 import { AddSiteButton } from "@/components/add-site-dialog";
 import { Globe, ChevronRight, Clock, Search } from "lucide-react";
 import { loadSiteListStats } from "@/features/sites/stats";
+import { siteWatchPresentation } from "@/lib/monitor-freshness";
 
 export default async function SitesPage({
   searchParams,
@@ -50,7 +51,7 @@ export default async function SitesPage({
     <div className="space-y-6 animate-spectral-fade">
       <PageHeader
         title="Sites"
-        description="Active synthetic monitoring and visual regression surveillance."
+        description="HTTP checks, visual diffs, and the sites Witch is watching."
         actions={<AddSiteButton browserMonitoring={ctx.plan.browserMonitoring} />}
       />
 
@@ -59,8 +60,8 @@ export default async function SitesPage({
           title="Nothing under watch yet"
           description={
             ctx.plan.browserMonitoring
-              ? "Add your first website and Witch will deploy synthetic HTTP checks and capture desktop and mobile visual baselines."
-              : "Add your first website to deploy synthetic HTTP monitoring."
+              ? "Add your first website. Witch will run HTTP checks and capture desktop and mobile baselines."
+              : "Add your first website to start HTTP monitoring."
           }
           action={<AddSiteButton browserMonitoring={ctx.plan.browserMonitoring} />}
         />
@@ -172,7 +173,7 @@ function SiteTableRow({
         </Link>
       </td>
       <td className="py-3.5 px-4">
-        <StatusBadge status={site.status} />
+        <StatusBadge status={siteWatchPresentation(site).status} label={siteWatchPresentation(site).label} />
       </td>
       <td className="py-3.5 px-4 text-[var(--text-muted)]">
         <div className="flex items-center gap-1.5 mono text-[12px]">
@@ -260,7 +261,7 @@ function SiteMobileCard({
           ) : (
             <span className="text-[var(--healthy)]">Stable</span>
           )}
-          <StatusBadge status={site.status} />
+          <StatusBadge status={siteWatchPresentation(site).status} label={siteWatchPresentation(site).label} />
         </div>
       </div>
     </Link>

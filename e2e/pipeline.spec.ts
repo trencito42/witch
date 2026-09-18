@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { spawnSync } from "node:child_process";
 import { server } from "../scripts/fixture-server";
 
 const fixturePort = Number(process.env.FIXTURE_PORT ?? 3456);
@@ -27,9 +28,21 @@ test("broken fixture remains HTTP 200 without checkout CTA", async ({ request })
   expect(await response.text()).not.toContain("Checkout");
 });
 
-test("authenticated monitor→incident pipeline requires staging credentials", async () => {
-  test.skip(
-    !process.env.E2E_EMAIL || !process.env.E2E_PASSWORD || !process.env.DATABASE_URL,
-    "Set E2E_EMAIL, E2E_PASSWORD, and DATABASE_URL to run the authenticated pipeline against a staging workspace.",
+test("authenticated monitor→incident→recovery pipeline", async () => {
+  test.skip(!process.env.DATABASE_URL, "DATABASE_URL is required for the real pipeline.");
+  test.setTimeout(360_000);
+  const result = spawnSync(
+    "npx",
+    ["tsx", "--require", "./worker/register-server-only.cjs", "scripts/e2e-pipeline.ts"],
+    { encoding: "utf8", env: { ...process.env, FIXTURE_ENABLED: "true" }, timeout: 330_000 },
   );
+  if (result.status !== 0) {
+    throw new Error(result.stderr || result.stdout || "pipeline script failed");
+  }
+  const line = result.stdout.split("\n").find((row) => row.startsWith("E2E_PIPELINE_RESULT "));
+  expect(line).toBeTruthy();
+  const payload = JSON.parse(line!.slice("E2E_PIPELINE_RESULT ".length));
+  expect(payload.ok).toBe(true);
+  expect(payload.resolved).toBe(true);
+  expect(payload.snapshots).toBeGreaterThanOrEqual(2);
 });

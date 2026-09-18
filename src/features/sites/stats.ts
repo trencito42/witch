@@ -1,7 +1,7 @@
 import "server-only";
-import { and, desc, eq, inArray } from "drizzle-orm";
-import { db } from "@/db";
-import { incidents, monitorChecks } from "@/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
+import { db, getPool } from "@/db";
+import { incidents } from "@/db/schema";
 
 const ACTIVE = ["OPEN", "ACKNOWLEDGED"] as const;
 
@@ -28,21 +28,21 @@ export async function loadSiteListStats(organizationId: string, siteIds: string[
     openBySite.set(row.siteId, (openBySite.get(row.siteId) ?? 0) + 1);
   }
 
-  const recent = await db
-    .select({
-      siteId: monitorChecks.siteId,
-      durationMs: monitorChecks.durationMs,
-      createdAt: monitorChecks.createdAt,
-    })
-    .from(monitorChecks)
-    .where(and(eq(monitorChecks.organizationId, organizationId), inArray(monitorChecks.siteId, siteIds)))
-    .orderBy(desc(monitorChecks.createdAt))
-    .limit(2_000);
+  const placeholders = siteIds.map(() => "?").join(",");
+  const [rows] = await getPool().query(
+    `SELECT site_id AS siteId, duration_ms AS durationMs, created_at AS createdAt
+     FROM (
+       SELECT site_id, duration_ms, created_at,
+         ROW_NUMBER() OVER (PARTITION BY site_id ORDER BY created_at DESC) AS rn
+       FROM monitor_check
+       WHERE organization_id = ? AND site_id IN (${placeholders})
+     ) ranked
+     WHERE rn = 1`,
+    [organizationId, ...siteIds],
+  );
 
-  for (const row of recent) {
-    if (!lastBySite.has(row.siteId)) {
-      lastBySite.set(row.siteId, { durationMs: row.durationMs, createdAt: row.createdAt });
-    }
+  for (const row of Array.isArray(rows) ? (rows as { siteId: string; durationMs: number | null; createdAt: Date }[]) : []) {
+    lastBySite.set(row.siteId, { durationMs: row.durationMs, createdAt: row.createdAt });
   }
 
   return { openBySite, lastBySite };

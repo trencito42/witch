@@ -23,8 +23,7 @@ import { meaningfulFailedResources } from "@/monitoring/assets";
 import { applyIssues } from "@/features/incidents/service";
 import { enqueueJob } from "@/server/jobs";
 import type { VisualSensitivity } from "@/lib/constants";
-import { canUseBrowserMonitoring, canUseVisualMonitoring } from "@/lib/plans";
-import { getPlanLimits } from "@/lib/plans";
+import { canUseBrowserMonitoring, canUseVisualMonitoring, getEffectivePlan } from "@/lib/plans";
 import { subscriptions } from "@/db/schema";
 import { hostnameFromUrl, sanitizeEvidence } from "@/lib/safe-url";
 
@@ -47,7 +46,7 @@ async function planForOrg(organizationId: string) {
     .from(subscriptions)
     .where(eq(subscriptions.organizationId, organizationId))
     .limit(1);
-  return getPlanLimits(sub?.planId ?? "free");
+  return getEffectivePlan(sub);
 }
 
 export async function processHttpMonitor(monitor: Monitor, site: Site, trigger: string) {
@@ -128,7 +127,7 @@ export async function processHttpMonitor(monitor: Monitor, site: Site, trigger: 
 
 export async function processBrowserMonitor(monitor: Monitor, site: Site, trigger: string) {
   const plan = await planForOrg(site.organizationId);
-  if (!canUseBrowserMonitoring(plan.id) && trigger !== "onboarding") {
+  if (!canUseBrowserMonitoring(plan.id)) {
     return;
   }
   const viewport = (monitor.viewport as "desktop" | "mobile") ?? "desktop";

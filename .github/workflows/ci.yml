@@ -8,6 +8,31 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test
+          MYSQL_DATABASE: witch
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ptest"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: mysql://root:test@127.0.0.1:3306/witch
+      AUTH_SECRET: ci-auth-secret-at-least-32-characters
+      APP_URL: http://127.0.0.1:3003
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3003
+      BETTER_AUTH_URL: http://127.0.0.1:3003
+      AUTH_TRUSTED_ORIGINS: http://127.0.0.1:3003
+      NODE_ENV: test
+      PORT: "3003"
+      FIXTURE_ENABLED: "true"
+      FIXTURE_PORT: "3456"
+      PLAYWRIGHT_HEADLESS: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,6 +43,10 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npx tsx scripts/migrate.ts
+      - run: npx tsx scripts/verify-migrations.ts
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: PLAYWRIGHT_SKIP_WEBSERVER=1 npx playwright test e2e/fixtures.spec.ts e2e/pipeline.spec.ts
+      - run: npx playwright test
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3003

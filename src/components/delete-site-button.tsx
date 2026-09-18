@@ -22,7 +22,7 @@ export function DeleteSiteButton({ siteId }: { siteId: string }) {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogHeader
-          title="Delete site surveillance?"
+          title="Delete this site?"
           description="This action cannot be undone. All synthetic check history, visual baseline snapshots, diffs, and incident telemetry will be permanently deleted."
           onClose={() => setOpen(false)}
         />

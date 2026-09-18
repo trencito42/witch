@@ -295,7 +295,7 @@ async function applyStripeEvent(event: Stripe.Event) {
   });
 
   if (!applied) return;
-  await applyPlanLimits(organizationId, effectivePlan);
+  await applyPlanLimits(organizationId);
   await writeAudit({
     action: "billing.updated",
     organizationId,

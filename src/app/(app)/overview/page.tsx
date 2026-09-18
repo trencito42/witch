@@ -13,6 +13,7 @@ import {
 } from "@/components/ui";
 import { computeOrgHttpMetrics } from "@/features/reports/service";
 import { loadSiteListStats } from "@/features/sites/stats";
+import { isMonitoringStale } from "@/lib/monitor-freshness";
 import {
   Globe,
   Plus,
@@ -58,6 +59,9 @@ export default async function OverviewPage() {
   const attention = orgSites.filter((site) =>
     ["DOWN", "DEGRADED"].includes(site.status),
   );
+  const staleSites = orgSites.filter(
+    (site) => site.status !== "PAUSED" && isMonitoringStale(site),
+  );
   const healthy = orgSites.filter((site) => site.status === "HEALTHY").length;
 
   const [recentChecks] = await db
@@ -88,7 +92,9 @@ export default async function OverviewPage() {
       ? attention.some((s) => s.status === "DOWN")
         ? "critical"
         : "warning"
-      : "healthy";
+      : staleSites.length > 0
+        ? "warning"
+        : "healthy";
 
   return (
     <div className="space-y-10 animate-spectral-fade">
@@ -103,22 +109,26 @@ export default async function OverviewPage() {
               <div className="flex items-center gap-2">
                 <span className="text-[12px] font-medium tracking-wider uppercase text-[var(--accent)] flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Observatory Status
+                  Workspace status
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-[var(--text)]">
                 {orgSites.length === 0
-                  ? "Digital Observatory Standby"
+                  ? "Nothing under watch yet"
                   : attention.length === 0
-                    ? "Everything is quiet."
+                    ? staleSites.length
+                      ? "Monitoring looks delayed."
+                      : "Everything is quiet."
                     : `${attention.length} ${attention.length === 1 ? "site requires" : "sites require"} attention.`}
               </h1>
               <p className="text-[14px] text-[var(--text-muted)] max-w-xl leading-relaxed">
                 {orgSites.length === 0
-                  ? "Connect your first web service to initiate automated synthetic monitoring and visual regression detection."
+                  ? "Add a site to start HTTP checks. Visual diffs unlock on Freelancer."
                   : attention.length === 0
-                    ? `Witch completed ${Number(recentChecks?.value ?? 0)} checks in the last 5 minutes. All telemetry feeds report normal baseline behavior.`
-                    : `Active incidents detected across monitored sites. Review evidence logs below.`}
+                    ? staleSites.length
+                      ? "Expected checks are overdue. Confirm the worker is running."
+                      : `Witch completed ${Number(recentChecks?.value ?? 0)} checks in the last 5 minutes.`
+                    : `Incidents on monitored sites. Review them below.`}
               </p>
             </div>
           </div>
@@ -198,7 +208,7 @@ export default async function OverviewPage() {
                   Sites Under Watch
                 </h2>
                 <p className="text-[13px] text-[var(--text-muted)]">
-                  Continuous synthetic monitoring and visual regression surveillance
+                  HTTP checks plus visual diffs on paid plans
                 </p>
               </div>
               <Link

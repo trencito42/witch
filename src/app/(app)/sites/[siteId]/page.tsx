@@ -214,8 +214,8 @@ export default async function SitePage({
           <Sparkles className="h-4 w-4 shrink-0 text-[var(--accent)]" />
           <span>
             {ctx.plan.browserMonitoring
-              ? "Your website is now under active surveillance. Witch has queued synthetic HTTP checks and browser baseline captures."
-              : "HTTP synthetic surveillance is active. Upgrade to Freelancer or above to enable visual regression testing."}
+              ? "This site is queued for HTTP checks and Chromium baseline captures."
+              : "HTTP checks are queued. Upgrade to Freelancer or above for visual regression testing."}
           </span>
         </div>
       )}

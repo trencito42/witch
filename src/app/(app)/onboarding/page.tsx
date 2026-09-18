@@ -22,7 +22,7 @@ export default async function OnboardingPage() {
       <div className="relative mb-8 text-center sm:text-left">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/20 text-[var(--accent)] text-[11px] font-medium tracking-wide uppercase mb-3">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Observatory Initialization</span>
+          <span>First site</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[var(--text)]">
           Add your first site under watch

@@ -96,7 +96,7 @@ export function AppShell({
     <ToastProvider>
       <div className="flex min-h-screen bg-[var(--bg)] text-[var(--text)]">
         {/* DESKTOP FLOATING SIDEBAR */}
-        <aside className="hidden md:flex flex-col w-[232px] shrink-0 border-r border-[var(--border)] bg-[var(--bg-elevated)]/40 p-4 sticky top-0 h-screen z-30 select-none">
+        <aside className="hidden lg:flex flex-col w-[232px] shrink-0 border-r border-[var(--border)] bg-[var(--bg-elevated)]/40 p-4 sticky top-0 h-screen z-30 select-none">
           {/* Brand header */}
           <div className="flex items-center justify-between mb-5 px-2">
             <Link href="/overview" className="transition-opacity hover:opacity-90">
@@ -156,7 +156,7 @@ export function AppShell({
           {/* Primary Navigation */}
           <div className="space-y-1 mb-6">
             <div className="px-2 pb-1 text-[11px] font-medium text-[var(--text-faint)] uppercase tracking-wider">
-              Observatory
+              Monitor
             </div>
             {primaryNav.map((item) => {
               const active =
@@ -266,7 +266,7 @@ export function AppShell({
         {/* MAIN VIEWPORT AREA */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* MOBILE TOP BAR */}
-          <header className="flex md:hidden items-center justify-between min-h-14 gap-3 px-4 border-b border-[var(--border)] bg-[var(--bg-elevated)]/70 backdrop-blur-md sticky top-0 z-40 pt-[env(safe-area-inset-top,0px)]">
+          <header className="flex lg:hidden items-center justify-between min-h-14 gap-3 px-4 border-b border-[var(--border)]/60 bg-[var(--bg)] sticky top-0 z-40 pt-[env(safe-area-inset-top,0px)]">
             <Link href="/overview" className="shrink-0 transition-opacity hover:opacity-90">
               <Wordmark size="mobile" />
             </Link>
@@ -279,12 +279,12 @@ export function AppShell({
           </header>
 
           {/* PAGE CONTENT CONTAINER */}
-          <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8">
+          <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-8">
             {children}
           </main>
 
           {/* MOBILE FIXED BOTTOM NAVIGATION */}
-          <nav className="flex md:hidden fixed bottom-0 left-0 right-0 z-40 min-h-14 items-end justify-around border-t border-[var(--border)] bg-[var(--bg-elevated)]/90 backdrop-blur-md px-1 pt-1 pb-[max(0.4rem,env(safe-area-inset-bottom,0px))]">
+          <nav className="flex lg:hidden fixed bottom-0 left-0 right-0 z-40 min-h-14 items-end justify-around border-t border-[var(--border)]/60 bg-[var(--bg)] px-1 pt-1 pb-[max(0.4rem,env(safe-area-inset-bottom,0px))]">
             {primaryNav.map((item) => {
               const active =
                 pathname === item.href ||

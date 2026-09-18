@@ -6,6 +6,7 @@ import { Button, Input, Label } from "@/components/ui";
 import { Plus, Globe, ArrowRight } from "lucide-react";
 import { actionCreateSite } from "@/app/actions";
 import { useToast } from "@/components/ui/toast";
+import { isNextNavigationError } from "@/lib/navigation-error";
 
 export function AddSiteButton({
   browserMonitoring = true,
@@ -35,7 +36,7 @@ export function AddSiteButton({
           description={
             browserMonitoring
               ? "Witch will initiate automated HTTP checks, Chromium rendering, and create initial visual baselines."
-              : "Witch will initiate automated HTTP surveillance."
+              : "Witch will run automated HTTP and TLS checks."
           }
           onClose={() => setOpen(false)}
         />
@@ -46,11 +47,12 @@ export function AddSiteButton({
             try {
               toast({
                 title: "Registering site…",
-                description: "Setting up surveillance monitors",
+                description: "Queuing the first checks",
                 type: "info",
               });
               await actionCreateSite(formData);
             } catch (err: unknown) {
+              if (isNextNavigationError(err)) throw err;
               setLoading(false);
               toast({
                 title: "Failed to add site",
@@ -103,8 +105,7 @@ export function AddSiteButton({
               loading={loading}
               trailingIcon={<ArrowRight className="h-4 w-4" />}
             >
-              <span className="sm:hidden">Add site</span>
-              <span className="hidden sm:inline">Deploy surveillance</span>
+              Add site
             </Button>
           </div>
         </form>

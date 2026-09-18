@@ -156,4 +156,4 @@ The fixture server (`npm run fixture`) exposes:
 
 ## Security notes
 
-Tenant isolation is enforced on every query via `organization_id`. Screenshots are not public files. Monitoring never uses dashboard cookies. Redirects are re-validated. API keys are shown once and stored hashed.
+Tenant isolation is enforced on every query via `organization_id`. Screenshots are not public files. Monitoring never uses dashboard cookies. Redirects are re-validated. There is no public HTTP API in this release.

@@ -122,6 +122,21 @@ export function entitledPlanId(
   return getPlanLimits(planId).id;
 }
 
+export type PlanSubscription = {
+  planId?: string | null;
+  status?: string | null;
+} | null | undefined;
+
+export function getEffectivePlan(subscription: PlanSubscription): PlanLimits {
+  return getPlanLimits(entitledPlanId(subscription?.planId, subscription?.status));
+}
+
+export const getEffectivePlanFromSubscription = getEffectivePlan;
+
+export function canUseAiAnalysis(planId: string) {
+  return getPlanLimits(planId).id !== "free";
+}
+
 export function canCreateSite(planId: string, currentSiteCount: number) {
   const limits = getPlanLimits(planId);
   return currentSiteCount < limits.maxSites;

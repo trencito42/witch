@@ -1,0 +1,14 @@
+---
+description: Commit and push to origin after finishing work, without waiting to be asked.
+alwaysApply: true
+---
+
+# Always commit and push
+
+After finishing a task that changes the repo:
+
+- Commit the relevant files.
+- Push to `origin` on the current branch (`git push -u origin HEAD` if needed).
+- Do not wait for "commit" or "push" in the next message.
+
+Do not force-push to `main`/`master`. Do not skip hooks. Do not commit secrets (`.env`, credentials). Do not amend a commit that is already on the remote unless the user asks.

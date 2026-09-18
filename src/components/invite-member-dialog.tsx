@@ -26,7 +26,7 @@ export function InviteMemberDialog() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogHeader
           title="Invite team member"
-          description="Grant team access to collaborate on website surveillance, alerts, and incident responses."
+          description="Invite someone to this workspace, alerts, and incidents."
           onClose={() => setOpen(false)}
         />
 

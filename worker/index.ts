@@ -8,7 +8,7 @@ import { generateMonthlyReports, sendReportEmail } from "@/features/reports/serv
 import { getStorage } from "@/storage";
 import { childLogger, logger } from "@/lib/logger";
 import { closeBrowser } from "@/monitoring/browser";
-import { entitledPlanId, getPlanLimits } from "@/lib/plans";
+import { getEffectivePlan } from "@/lib/plans";
 import { subscriptions } from "@/db/schema";
 import { sites } from "@/db/schema";
 import { getEnv } from "@/lib/env";
@@ -71,7 +71,7 @@ async function cleanupRetention() {
       .from(subscriptions)
       .where(eq(subscriptions.organizationId, site.organizationId))
       .limit(1);
-    const days = getPlanLimits(entitledPlanId(sub?.planId, sub?.status)).historyDays;
+    const days = getEffectivePlan(sub).historyDays;
     const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const activeIncidents = await db
       .select({ metadata: incidents.metadata })

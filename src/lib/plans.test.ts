@@ -3,7 +3,9 @@ import {
   canCreateSite,
   canCreateWorkspace,
   canUseBrowserMonitoring,
+  canUseAiAnalysis,
   entitledPlanId,
+  getEffectivePlan,
   getPlanLimits,
   highestPlan,
   minIntervalForMonitor,
@@ -42,5 +44,9 @@ describe("plan limits", () => {
     expect(subscriptionGrantsEntitlements("canceled")).toBe(false);
     expect(entitledPlanId("agency", "unpaid")).toBe("free");
     expect(entitledPlanId("agency", "past_due")).toBe("agency");
+    expect(getEffectivePlan({ planId: "agency", status: "unpaid" }).id).toBe("free");
+    expect(getEffectivePlan({ planId: "agency", status: "past_due" }).browserMonitoring).toBe(true);
+    expect(canUseAiAnalysis("free")).toBe(false);
+    expect(canUseAiAnalysis("freelancer")).toBe(true);
   });
 });

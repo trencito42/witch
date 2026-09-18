@@ -47,7 +47,7 @@ export function AuthForm({
           <div className="mb-7 text-center">
             <h1 className="text-[20px] font-semibold tracking-tight text-[var(--text)]">
               {mode === "login" && "Sign in to Witch"}
-              {mode === "signup" && "Create your observatory"}
+              {mode === "signup" && "Create your account"}
               {mode === "forgot" && "Reset your password"}
               {mode === "reset" && "Choose a new password"}
             </h1>
@@ -154,7 +154,7 @@ export function AuthForm({
               ) : (
                 <>
                   {mode === "login" && "Sign in"}
-                  {mode === "signup" && "Create observatory"}
+                  {mode === "signup" && "Create account"}
                   {mode === "forgot" && "Send reset link"}
                   {mode === "reset" && "Update password"}
                   <ArrowRight className="w-4 h-4" />
@@ -203,7 +203,7 @@ export function AuthForm({
 
         {/* Security / trust badge */}
         <p className="mt-6 text-center text-[11px] text-[var(--text-faint)] tracking-wider uppercase">
-          Witch · Secure telemetry &amp; monitoring
+          Witch · monitoring beyond uptime
         </p>
       </div>
     </div>

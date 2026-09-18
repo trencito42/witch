@@ -9,7 +9,7 @@ import {
 } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { writeAudit } from "./audit";
-import { canCreateWorkspace, getPlanLimits, highestPlan } from "@/lib/plans";
+import { canCreateWorkspace, getEffectivePlan, highestPlan } from "@/lib/plans";
 
 function slugify(value: string) {
   return value
@@ -101,13 +101,14 @@ export async function createOrganizationForUser(input: {
     .select({
       id: organizations.id,
       planId: subscriptions.planId,
+      status: subscriptions.status,
     })
     .from(organizationMembers)
     .innerJoin(organizations, eq(organizations.id, organizationMembers.organizationId))
     .innerJoin(subscriptions, eq(subscriptions.organizationId, organizations.id))
     .where(and(eq(organizationMembers.userId, input.userId), eq(organizationMembers.role, "OWNER")));
-  const plan = highestPlan(owned.map((row) => row.planId));
-  const limits = getPlanLimits(plan);
+  const plan = highestPlan(owned.map((row) => getEffectivePlan(row).id));
+  const limits = getEffectivePlan({ planId: plan, status: "active" });
   if (!canCreateWorkspace(plan, owned.length)) {
     throw new Error(`The ${limits.name} plan allows ${limits.maxWorkspaces} workspace(s). Upgrade to create more.`);
   }

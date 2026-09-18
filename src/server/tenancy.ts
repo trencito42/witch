@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { organizations, subscriptions } from "@/db/schema";
 import { ADMIN_ROLES, ORG_COOKIE, WRITE_ROLES, type OrgRole } from "@/lib/constants";
-import { getPlanLimits, entitledPlanId, type PlanLimits } from "@/lib/plans";
+import { getEffectivePlan, type PlanLimits } from "@/lib/plans";
 import { requireSession } from "./session";
 import { findMembership, findOrganizationsForUser } from "./organizations";
 
@@ -68,7 +68,7 @@ export async function requireOrgContext(
     organizationId: org.id,
     organizationName: org.name,
     role: memberRow.role as OrgRole,
-    plan: getPlanLimits(entitledPlanId(sub?.planId, sub?.status)),
+    plan: getEffectivePlan(sub),
     subscriptionStatus: sub?.status ?? "active",
   };
 }

@@ -17,6 +17,11 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ kind: string; id: string }> },
 ) {
+  const session = await getSession();
+  if (!session?.user) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
   const { kind, id } = await params;
   if (kind === "diff") {
     const [diff] = await db.select().from(visualDiffs).where(eq(visualDiffs.id, id)).limit(1);

@@ -1,8 +1,11 @@
+import * as fs from "fs";
+import * as path from "path";
 import { chromium, type Browser, type BrowserContext } from "playwright";
 import { getEnv } from "@/lib/env";
 import { VIEWPORTS, MAX_CONSOLE_EVENTS, MAX_FAILED_REQUESTS, MAX_BROWSER_REQUESTS, MAX_BROWSER_BYTES, MAX_BROWSER_INFLIGHT, MAX_DOCUMENT_BYTES, MAX_SUBRESOURCE_BYTES } from "@/lib/constants";
 import { assertPublicHttpUrl, sanitizeUrlForLog, UnsafeUrlError } from "@/lib/safe-url";
-import { extractDomSignals, type DomSignals } from "./dom";
+import { type DomSignals } from "./dom";
+import { EXTRACT_DOM_IIFE } from "./extract-dom-iife";
 import { ImageNormalizeError, normalizeScreenshot } from "./image";
 import { collectIgnoreRegionsInPage, ignoreRegionCollectorArgs } from "./masks";
 import type { IgnoreRegion } from "./regions";
@@ -37,11 +40,17 @@ let browserPromise: Promise<Browser> | null = null;
 async function getBrowser() {
   if (!browserPromise) {
     const env = getEnv();
+    const wrapperPath = path.resolve(process.cwd(), "scripts/chrome-wrapper.sh");
+    const executablePath =
+      env.PLAYWRIGHT_CHROMIUM_PATH || (fs.existsSync(wrapperPath) ? wrapperPath : undefined);
+
     browserPromise = chromium
       .launch({
         headless: env.PLAYWRIGHT_HEADLESS !== false,
-        executablePath: env.PLAYWRIGHT_CHROMIUM_PATH,
+        executablePath,
         args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
           "--disable-gpu",
           "--no-default-browser-check",
@@ -236,16 +245,16 @@ export async function runBrowserCheck(input: {
         error instanceof ImageNormalizeError ? error.message : "Screenshot could not be stored safely";
     }
 
-    const dom = (await page.evaluate(extractDomSignals)) as DomSignals;
-    const timing = await page.evaluate(() => {
-      const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    const dom = (await page.evaluate(EXTRACT_DOM_IIFE)) as DomSignals;
+    const timing = (await page.evaluate(`(() => {
+      const nav = performance.getEntriesByType("navigation")[0];
       if (!nav) return null;
       return {
         domContentLoaded: Math.round(nav.domContentLoadedEventEnd),
         load: Math.round(nav.loadEventEnd),
         response: Math.round(nav.responseEnd),
       };
-    });
+    })()`)) as Record<string, number> | null;
 
     const completedAt = new Date();
     const statusCode = response?.status() ?? null;

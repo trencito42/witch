@@ -12,7 +12,7 @@ import {
 import { analyzeIncidentSafe } from "@/ai/provider";
 import { newId } from "@/lib/ids";
 import { appUrl } from "@/lib/env";
-import { canUseEmailAlerts, getPlanLimits } from "@/lib/plans";
+import { canUseAiAnalysis, canUseEmailAlerts, getEffectivePlan } from "@/lib/plans";
 import { subscriptions } from "@/db/schema";
 import { sendIncidentAlertEmail, sendRecoveryAlertEmail } from "@/emails/send";
 import { emailEnabled } from "@/lib/env";
@@ -28,6 +28,12 @@ const SEVERITY_RANK: Record<string, number> = {
 };
 
 export async function processAiAnalysis(incidentId: string, organizationId: string) {
+  const [sub] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.organizationId, organizationId))
+    .limit(1);
+  if (!canUseAiAnalysis(getEffectivePlan(sub).id)) return;
   const [incident] = await db
     .select()
     .from(incidents)
@@ -137,7 +143,7 @@ export async function processEmailAlert(incidentId: string, organizationId: stri
     .from(subscriptions)
     .where(eq(subscriptions.organizationId, organizationId))
     .limit(1);
-  const plan = getPlanLimits(sub?.planId ?? "free");
+  const plan = getEffectivePlan(sub);
   if (!canUseEmailAlerts(plan.id)) return;
 
   const [org] = await db.select().from(organizations).where(eq(organizations.id, organizationId)).limit(1);

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     template: "%s · Witch",
   },
   description:
-    "Uptime tells you the site is online. Witch tells you if it still works.",
+    "Uptime tells you the site is online. Witch tells you if it still works — HTTP, real browsers, and visual diffs.",
   icons: { icon: "/mark.svg" },
   openGraph: {
     title: "Witch",

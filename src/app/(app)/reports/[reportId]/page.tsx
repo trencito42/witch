@@ -117,7 +117,7 @@ export default async function ReportDetailPage({
 
         {/* Report Footer */}
         <div className="pt-6 border-t border-[var(--border)] print:border-gray-200 flex items-center justify-between text-[11px] text-[var(--text-faint)] print:text-gray-500">
-          <span>Continuous monitoring verified by Witch Digital Observatory</span>
+          <span>Prepared by Witch</span>
           <span className="mono">ID: {report.id}</span>
         </div>
       </article>
