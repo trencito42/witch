@@ -8,10 +8,10 @@ import { createSite, deleteSite, pauseSite, queueManualCheck, getSiteForOrg } fr
 import { acknowledgeIncident, ignoreIncident, resolveIncident } from "@/features/incidents/service";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { jobs, monitors, sites, visualSnapshots, organizations, users, alertChannels, sessions, statusPageSubscribers, type VisualNoiseSettings } from "@/db/schema";
+import { jobs, monitors, sites, visualSnapshots, organizations, users, alertChannels, sessions, statusPageSubscribers, subscriptions, type VisualNoiseSettings } from "@/db/schema";
 import { writeAudit } from "@/server/audit";
 import { INTERVALS_SECONDS } from "@/lib/constants";
-import { minIntervalForMonitor, canUseEmailAlerts, canUseBrowserMonitoring } from "@/lib/plans";
+import { minIntervalForMonitor, canUseEmailAlerts, canUseBrowserMonitoring, getEffectivePlan } from "@/lib/plans";
 import { isValidDiscordWebhookUrl } from "@/lib/discord";
 import { logger } from "@/lib/logger";
 import { newId } from "@/lib/ids";
@@ -32,6 +32,11 @@ import { createCheckoutSession, createPortalSession } from "@/billing/stripe";
 import type { PlanId } from "@/lib/plans";
 import { auth } from "@/auth";
 import { headers } from "next/headers";
+import { appUrl, emailEnabled, getEnv } from "@/lib/env";
+import { clientIpFromHeaders } from "@/lib/client-ip";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { safeEqual, statusSubscriptionToken } from "@/lib/crypto";
+import { sendStatusSubscriptionConfirmationEmail } from "@/emails/send";
 
 function formString(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -317,13 +322,27 @@ export async function actionUpdateStatusPage(formData: FormData) {
 }
 
 export async function actionSubscribeStatusPage(formData: FormData) {
+  if (!emailEnabled()) {
+    throw new Error("Email subscriptions are temporarily unavailable.");
+  }
+
   const organizationId = formString(formData, "organizationId");
   const rawEmail = formString(formData, "email");
   const email = emailSchema.parse(rawEmail.toLowerCase());
+  const requestHeaders = await headers();
+  const ip = clientIpFromHeaders(requestHeaders);
+
+  await enforceRateLimit({ key: `status-subscribe:ip:${ip}`, limit: 10, windowSeconds: 3600 });
+  await enforceRateLimit({
+    key: `status-subscribe:email:${organizationId}:${email}`,
+    limit: 4,
+    windowSeconds: 24 * 60 * 60,
+  });
 
   const [org] = await db
     .select({
       id: organizations.id,
+      name: organizations.name,
       statusPageEnabled: organizations.statusPageEnabled,
       statusPageAllowSubscribe: organizations.statusPageAllowSubscribe,
     })
@@ -331,26 +350,106 @@ export async function actionSubscribeStatusPage(formData: FormData) {
     .where(eq(organizations.id, organizationId))
     .limit(1);
 
-  if (!org || !org.statusPageEnabled || !org.statusPageAllowSubscribe) {
+  const [sub] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.organizationId, organizationId))
+    .limit(1);
+
+  if (
+    !org ||
+    !org.statusPageEnabled ||
+    !org.statusPageAllowSubscribe ||
+    !canUseEmailAlerts(getEffectivePlan(sub).id)
+  ) {
     throw new Error("Subscriptions are not enabled for this status page.");
   }
 
-  const existing = await db
-    .select({ id: statusPageSubscribers.id })
+  const [existing] = await db
+    .select()
     .from(statusPageSubscribers)
     .where(and(eq(statusPageSubscribers.organizationId, organizationId), eq(statusPageSubscribers.email, email)))
     .limit(1);
 
-  if (!existing[0]) {
+  if (existing?.confirmedAt) {
+    return { success: true, message: "This email is already subscribed." };
+  }
+
+  const subscriberId = existing?.id ?? newId();
+  if (!existing) {
     await db.insert(statusPageSubscribers).values({
-      id: newId(),
+      id: subscriberId,
       organizationId,
       email,
+      confirmedAt: null,
       createdAt: new Date(),
     });
   }
 
-  return { success: true, message: "You are subscribed to status updates." };
+  const token = statusSubscriptionToken({
+    subscriberId,
+    organizationId,
+    email,
+    purpose: "confirm",
+    secret: getEnv().AUTH_SECRET,
+  });
+  const confirmUrl = `${appUrl()}/status/subscribe/confirm?id=${encodeURIComponent(subscriberId)}&token=${encodeURIComponent(token)}`;
+
+  await sendStatusSubscriptionConfirmationEmail({
+    to: email,
+    organizationName: org.name,
+    confirmUrl,
+  });
+
+  return { success: true, message: "Check your inbox to confirm the subscription." };
+}
+
+export async function actionConfirmStatusSubscription(id: string, token: string) {
+  const [subscriber] = await db
+    .select()
+    .from(statusPageSubscribers)
+    .where(eq(statusPageSubscribers.id, id))
+    .limit(1);
+  if (!subscriber) return false;
+
+  const expected = statusSubscriptionToken({
+    subscriberId: subscriber.id,
+    organizationId: subscriber.organizationId,
+    email: subscriber.email,
+    purpose: "confirm",
+    secret: getEnv().AUTH_SECRET,
+  });
+  if (!safeEqual(expected, token)) return false;
+
+  await db
+    .update(statusPageSubscribers)
+    .set({ confirmedAt: subscriber.confirmedAt ?? new Date() })
+    .where(eq(statusPageSubscribers.id, subscriber.id));
+  return true;
+}
+
+export async function actionUnsubscribeStatusPage(formData: FormData) {
+  const id = formString(formData, "id");
+  const token = formString(formData, "token");
+  const [subscriber] = await db
+    .select()
+    .from(statusPageSubscribers)
+    .where(eq(statusPageSubscribers.id, id))
+    .limit(1);
+  if (!subscriber) return;
+
+  const expected = statusSubscriptionToken({
+    subscriberId: subscriber.id,
+    organizationId: subscriber.organizationId,
+    email: subscriber.email,
+    purpose: "unsubscribe",
+    secret: getEnv().AUTH_SECRET,
+  });
+  if (!safeEqual(expected, token)) {
+    throw new Error("Invalid unsubscribe link.");
+  }
+
+  await db.delete(statusPageSubscribers).where(eq(statusPageSubscribers.id, subscriber.id));
 }
 
 export async function actionInvite(formData: FormData) {
