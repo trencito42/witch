@@ -18,7 +18,9 @@ import { subscriptions } from "@/db/schema";
 import { sendIncidentAlertEmail, sendRecoveryAlertEmail, sendStatusIncidentSubscriberEmail, sendStatusRecoverySubscriberEmail } from "@/emails/send";
 import { emailEnabled } from "@/lib/env";
 import { isValidDiscordWebhookUrl, sendDiscordWebhook } from "@/lib/discord";
-import { logger } from "@/lib/logger";\nimport { getEnv } from "@/lib/env";\nimport { statusSubscriptionToken } from "@/lib/crypto";
+import { logger } from "@/lib/logger";
+import { getEnv } from "@/lib/env";
+import { statusSubscriptionToken } from "@/lib/crypto";
 
 const SEVERITY_RANK: Record<string, number> = {
   INFO: 0,
