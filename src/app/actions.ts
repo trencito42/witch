@@ -428,6 +428,13 @@ export async function actionConfirmStatusSubscription(id: string, token: string)
   return true;
 }
 
+export async function actionConfirmStatusSubscriptionForm(formData: FormData) {
+  const id = formString(formData, "id");
+  const token = formString(formData, "token");
+  const confirmed = await actionConfirmStatusSubscription(id, token);
+  redirect("/status/subscribe/confirm?done=" + (confirmed ? "1" : "0"));
+}
+
 export async function actionUnsubscribeStatusPage(formData: FormData) {
   const id = formString(formData, "id");
   const token = formString(formData, "token");
@@ -450,6 +457,7 @@ export async function actionUnsubscribeStatusPage(formData: FormData) {
   }
 
   await db.delete(statusPageSubscribers).where(eq(statusPageSubscribers.id, subscriber.id));
+  redirect("/status/subscribe/unsubscribe?done=1");
 }
 
 export async function actionInvite(formData: FormData) {
