@@ -18,3 +18,20 @@ export function safeEqual(a: string, b: string): boolean {
 export function hashApiKey(secret: string): string {
   return sha256Hex(secret);
 }
+
+export function hmacSha256Hex(value: string, secret: string): string {
+  return createHmac("sha256", secret).update(value).digest("hex");
+}
+
+export function statusSubscriptionToken(input: {
+  subscriberId: string;
+  organizationId: string;
+  email: string;
+  purpose: "confirm" | "unsubscribe";
+  secret: string;
+}): string {
+  return hmacSha256Hex(
+    [input.purpose, input.subscriberId, input.organizationId, input.email.toLowerCase()].join(":"),
+    input.secret,
+  );
+}
