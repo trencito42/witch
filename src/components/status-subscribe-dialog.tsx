@@ -36,6 +36,7 @@ export function StatusSubscribeDialog({
 
       const res = await actionSubscribeStatusPage(formData);
       if (res.success) {
+        setSuccessMessage(res.message ?? "Check your inbox to confirm the subscription.");
         setSuccess(true);
       }
     } catch (err) {
