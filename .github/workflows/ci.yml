@@ -42,11 +42,11 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - run: npx playwright install --with-deps chromium
       - run: npm test
       - run: npx tsx scripts/migrate.ts
       - run: npx tsx scripts/verify-migrations.ts
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
       - run: npx playwright test
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:3003
