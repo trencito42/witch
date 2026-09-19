@@ -1,618 +1,453 @@
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
+import { fontSans, fontSerif } from "@/app/fonts";
 import { Wordmark } from "@/components/logo";
-import { fontSerif, fontSans } from "@/app/fonts";
+
+const signals = [
+  {
+    label: "Rendered UI",
+    title: "Missing buttons and forms",
+    body: "Witch compares the page visitors actually receive, so a green HTTP response cannot hide a missing checkout, signup, or booking control.",
+  },
+  {
+    label: "Viewport",
+    title: "Mobile-only breakage",
+    body: "Desktop and 390px mobile checks keep separate baselines, catching overflow, hidden navigation, and responsive layouts that quietly collapse.",
+  },
+  {
+    label: "Browser",
+    title: "JavaScript and asset failures",
+    body: "Console errors, failed scripts, broken images, error pages, and incomplete renders are collected as evidence instead of disappearing behind a 200 status.",
+  },
+  {
+    label: "Visual",
+    title: "Meaningful regressions",
+    body: "Accepted baselines, ignore regions, and stabilization reduce noise so visual changes can become useful incidents rather than a screenshot inbox.",
+  },
+];
+
+const steps = [
+  {
+    number: "01",
+    title: "Check the connection",
+    body: "HTTP status, TLS validity, redirects, and latency are checked first with public-network validation and strict fetch limits.",
+  },
+  {
+    number: "02",
+    title: "Open the page",
+    body: "Paid plans render the site in Chromium on desktop and mobile, wait for the page to stabilize, then capture DOM signals and a visual snapshot.",
+  },
+  {
+    number: "03",
+    title: "Explain the change",
+    body: "Witch compares the result with the accepted baseline, opens an incident when the evidence matters, and can attach AI analysis on paid plans.",
+  },
+];
+
+const plans = [
+  {
+    name: "Free",
+    price: "$0",
+    note: "For one public site",
+    accent: false,
+    features: ["1 site", "HTTP, TLS, latency", "30-minute interval", "7-day history", "Public status page"],
+  },
+  {
+    name: "Freelancer",
+    price: "$9",
+    note: "For independent developers",
+    accent: false,
+    features: ["5 sites", "Desktop + mobile Chromium", "Visual baselines", "Email + Discord alerts", "AI incident analysis", "30-day history"],
+  },
+  {
+    name: "Agency",
+    price: "$24",
+    note: "For client portfolios",
+    accent: true,
+    features: ["25 sites", "Visual ignore masks", "Up to 10 members", "Reports + alerts", "90-day history", "5 workspaces"],
+  },
+  {
+    name: "Agency Pro",
+    price: "$49",
+    note: "For larger portfolios",
+    accent: false,
+    features: ["75 sites", "5-minute browser interval", "Priority checks", "Advanced reporting", "180-day history", "Up to 25 members"],
+  },
+];
+
+const questions = [
+  {
+    q: "How is this different from an uptime monitor?",
+    a: "An uptime monitor can stay green while the interface is unusable. Witch keeps HTTP and TLS checks, then adds real browser rendering, visual baselines, DOM signals, and browser errors on paid plans.",
+  },
+  {
+    q: "Will Witch hammer my website?",
+    a: "No. Checks use plan-based intervals, jitter, concurrency limits, request caps, byte budgets, and isolated browser contexts. It is designed to observe a page, not crawl an entire site.",
+  },
+  {
+    q: "What happens when something changes?",
+    a: "Witch records the evidence and classifies the failure. Uptime failures are confirmed before alerting, visual and browser issues can open incidents, and recovery requires healthy checks before the incident closes.",
+  },
+];
 
 export default function HomePage() {
   return (
     <div
-      className={`landing-page ${fontSerif.variable} ${fontSans.variable} overflow-x-hidden`}
+      className={"landing-page " + fontSerif.variable + " " + fontSans.variable + " overflow-x-hidden"}
       style={{ backgroundColor: "var(--landing-bg)", color: "var(--landing-text)" }}
     >
-      {/* Navigation */}
-      <header className="border-b border-[var(--landing-border)] bg-[var(--landing-bg)]/90 backdrop-blur-sm sticky top-0 z-40">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 sm:px-10">
-          <Link href="/" className="flex items-center gap-2 text-[var(--landing-text)]">
+      <header className="sticky top-0 z-50 bg-[var(--landing-bg)]/84 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
+          <Link href="/" aria-label="Witch home" className="text-[var(--landing-text)]">
             <Wordmark />
           </Link>
-          <nav className="flex items-center gap-6 text-[15px]">
-            <Link
-              href="#how"
-              className="text-[var(--landing-text-muted)] hover:text-[var(--landing-text)] transition-colors"
-            >
+
+          <nav className="flex items-center gap-2 sm:gap-5 text-[14px]">
+            <a href="#how" className="hidden sm:inline text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)]">
               How it works
-            </Link>
-            <Link
-              href="#pricing"
-              className="text-[var(--landing-text-muted)] hover:text-[var(--landing-text)] transition-colors"
-            >
+            </a>
+            <a href="#pricing" className="hidden md:inline text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)]">
               Pricing
-            </Link>
-            <Link
-              href="/login"
-              className="text-[var(--landing-text-muted)] hover:text-[var(--landing-text)] transition-colors"
-            >
+            </a>
+            <Link href="/login" className="hidden sm:inline text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)]">
               Sign in
             </Link>
             <Link
               href="/signup"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-[var(--landing-accent)] px-4 text-[14px] font-semibold text-white hover:bg-[var(--landing-accent-hover)] transition-colors"
+              className="inline-flex h-9 items-center justify-center rounded-full bg-[var(--landing-text)] px-4 text-[13px] font-semibold text-[var(--landing-bg)] transition-opacity hover:opacity-90"
             >
-              Start monitoring
+              Start free
             </Link>
           </nav>
         </div>
       </header>
 
       <main>
-        {/* 1. Hero */}
-        <section className="mx-auto max-w-7xl px-6 sm:px-10 pt-16 pb-20 sm:pt-24 sm:pb-32">
-          <div className="grid items-center gap-12 lg:grid-cols-12">
-            <div className="lg:col-span-6 xl:col-span-5">
-              <h1 className="landing-serif text-4xl sm:text-5xl lg:text-[3.25rem] font-medium tracking-tight leading-[1.15] text-[var(--landing-text)]">
-                Your uptime monitor says the server is online while the checkout button is gone.
-              </h1>
-              <p className="landing-sans landing-body mt-6 text-[var(--landing-text-muted)]">
-                Witch opens pages in real desktop and mobile browsers so you catch broken layouts, failed scripts, and missing buttons before clients do.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center gap-5">
-                <Link
-                  href="/signup"
-                  className="inline-flex h-12 items-center justify-center rounded-md bg-[var(--landing-accent)] px-6 text-[15px] font-semibold text-white hover:bg-[var(--landing-accent-hover)] transition-colors shadow-sm"
-                >
-                  Start monitoring
-                </Link>
-                <a
-                  href="#incident"
-                  className="text-[16px] font-medium text-[var(--landing-text)] underline underline-offset-4 decoration-[var(--landing-border-strong)] hover:decoration-[var(--landing-accent)] transition-colors"
-                >
-                  See a real incident
-                </a>
-              </div>
+        <section className="relative isolate overflow-hidden">
+          <div className="pointer-events-none absolute inset-x-0 top-0 -z-20 h-[760px] opacity-70">
+            <Image src="/header-landing.png" alt="" fill priority sizes="100vw" className="object-cover object-top opacity-60 mix-blend-screen" />
+          </div>
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[780px]"
+            style={{
+              background:
+                "radial-gradient(circle at 50% 18%, rgba(142,102,166,.16), transparent 36%), linear-gradient(to bottom, rgba(7,7,9,.22), rgba(7,7,9,.62) 58%, var(--landing-bg) 100%)",
+            }}
+          />
+
+          <div className="mx-auto max-w-7xl px-5 pb-20 pt-20 text-center sm:px-8 sm:pb-28 sm:pt-28 lg:px-10 lg:pt-32">
+            <p className="landing-sans text-[12px] font-medium uppercase tracking-[0.22em] text-[var(--landing-text-muted)]">
+              Browser monitoring beyond uptime
+            </p>
+            <h1 className="landing-serif mx-auto mt-6 max-w-4xl text-[2.65rem] font-medium leading-[1.02] tracking-[-0.035em] text-[var(--landing-text)] sm:text-6xl lg:text-[4.9rem]">
+              Your site can be online
+              <span className="block text-[var(--landing-text-muted)]">and completely broken.</span>
+            </h1>
+            <p className="landing-sans mx-auto mt-7 max-w-2xl text-[17px] leading-7 text-[var(--landing-text-muted)] sm:text-[19px]">
+              Witch watches the page, not just the port. It checks HTTP and TLS, then uses Chromium to catch missing controls,
+              broken mobile layouts, failed scripts, and visual regressions.
+            </p>
+
+            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href="/signup"
+                className="inline-flex h-12 w-full items-center justify-center rounded-full bg-[var(--landing-text)] px-7 text-[14px] font-semibold text-[var(--landing-bg)] transition-transform hover:-translate-y-0.5 sm:w-auto"
+              >
+                Monitor your first site
+              </Link>
+              <a
+                href="#incident"
+                className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[14px] font-medium text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)] sm:w-auto"
+              >
+                See what Witch catches ↓
+              </a>
             </div>
-            <div className="lg:col-span-6 xl:col-span-7 lg:-mr-16 xl:-mr-32">
-              <div className="relative w-full overflow-hidden rounded-xl border border-[var(--landing-border-strong)] bg-[var(--surface-raised)] shadow-lg">
+            <p className="mt-4 text-[12px] text-[var(--landing-text-muted)]">Free HTTP + TLS monitoring. No credit card.</p>
+
+            <div className="mx-auto mt-14 max-w-6xl sm:mt-20">
+              <div className="mb-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-mono text-[11px] text-[var(--landing-text-muted)]">
+                <span>HTTP 200 ✓</span>
+                <span className="text-rose-300">Checkout CTA missing</span>
+                <span>Mobile · 390px</span>
+                <span>Evidence attached</span>
+              </div>
+              <div className="relative overflow-hidden rounded-[22px] bg-white/[0.025] p-1 shadow-[0_35px_120px_rgba(0,0,0,.42)] ring-1 ring-white/[0.08]">
                 <Image
                   src="/product-screenshot.png"
-                  alt="Witch real browser monitor showing desktop and mobile diff viewports"
-                  width={1200}
-                  height={750}
+                  alt="Witch dashboard showing browser monitoring and visual evidence"
+                  width={1600}
+                  height={1000}
                   priority
-                  className="h-auto w-full object-cover object-left-top"
+                  className="h-auto w-full rounded-[18px] object-cover object-left-top"
                 />
               </div>
             </div>
           </div>
         </section>
 
-        {/* 2. Incident story (full-bleed plum section) */}
-        <section
-          id="incident"
-          className="w-full bg-[var(--landing-plum)] text-[var(--landing-plum-text)] py-20 sm:py-28"
-        >
-          <div className="mx-auto max-w-7xl px-6 sm:px-10">
-            <div className="grid gap-12 lg:grid-cols-12 lg:items-start">
-              {/* Timeline narrative */}
-              <div className="lg:col-span-5">
-                <h2 className="landing-serif text-3xl sm:text-4xl font-medium tracking-tight leading-snug">
-                  An incident on [SITE]
+        <section className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10">
+          <div className="max-w-2xl">
+            <p className="text-[12px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">The gap</p>
+            <h2 className="landing-serif mt-4 text-4xl font-medium leading-tight tracking-[-0.025em] sm:text-5xl">
+              Green does not mean working.
+            </h2>
+            <p className="landing-sans mt-5 text-[17px] leading-7 text-[var(--landing-text-muted)]">
+              A server can answer perfectly while the thing users came to do has vanished. Witch is built for that uncomfortable
+              space between “the host is alive” and “the product actually works.”
+            </p>
+          </div>
+
+          <div className="mt-16 divide-y divide-white/[0.07]">
+            {signals.map((item) => (
+              <div key={item.title} className="grid gap-3 py-8 sm:grid-cols-[150px_1fr] sm:gap-10">
+                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--landing-text-muted)]">{item.label}</p>
+                <div>
+                  <h3 className="text-[20px] font-medium text-[var(--landing-text)]">{item.title}</h3>
+                  <p className="mt-2 max-w-2xl text-[15px] leading-7 text-[var(--landing-text-muted)]">{item.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="incident" className="relative overflow-hidden bg-[#140d18] py-20 text-[#f6f1f7] sm:py-28">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-50"
+            style={{
+              background:
+                "radial-gradient(circle at 74% 30%, rgba(169,113,194,.16), transparent 33%), radial-gradient(circle at 18% 75%, rgba(82,50,99,.2), transparent 30%)",
+            }}
+          />
+          <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+            <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+              <div className="lg:sticky lg:top-28 lg:self-start">
+                <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-white/45">Fixture replay</p>
+                <h2 className="landing-serif mt-4 text-4xl font-medium leading-tight tracking-[-0.025em] sm:text-5xl">
+                  HTTP stayed green.
+                  <span className="block text-[#cdaed7]">The checkout disappeared.</span>
                 </h2>
-                <div className="landing-sans landing-body mt-6 space-y-4 text-[var(--landing-plum-muted)]">
-                  <p>
-                    On [INCIDENT_DATE], a production deployment went live. The standard HTTP uptime check returned status code 200 every minute without a single alert.
-                  </p>
-                  <p>
-                    On mobile devices at 390px viewport width, the primary checkout button failed to mount due to [CAUSE].
-                  </p>
-                  <p>
-                    Witch captured the rendered page in Chromium, flagged the missing element against the baseline, and opened an incident within [DURATION].
-                  </p>
-                </div>
+                <p className="mt-6 max-w-xl text-[16px] leading-7 text-white/60">
+                  This is the failure case Witch uses in its own test fixture: the page still responds, but the primary checkout
+                  control disappears on the mobile render.
+                </p>
 
-                {/* Timeline / Incident Log */}
-                <div className="mt-8 rounded-lg border border-[var(--landing-plum-border)] bg-black/30 p-5 font-mono text-[13px] text-[var(--landing-plum-muted)] space-y-3">
-                  <div className="flex items-center justify-between border-b border-[var(--landing-plum-border)] pb-2 text-white">
-                    <span>INCIDENT RECORD</span>
-                    <span>390px Mobile</span>
+                <div className="mt-8 space-y-0 border-y border-white/10 font-mono text-[12px]">
+                  <div className="flex items-center justify-between gap-5 py-3">
+                    <span className="text-white/40">HTTP</span>
+                    <span className="text-emerald-300">200 OK</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/60">Target:</span>
-                    <span className="text-white">[SITE]</span>
+                  <div className="flex items-center justify-between gap-5 border-t border-white/10 py-3">
+                    <span className="text-white/40">Viewport</span>
+                    <span>390px mobile</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/60">HTTP Status:</span>
-                    <span className="text-emerald-400">200 OK (Clean)</span>
+                  <div className="flex items-center justify-between gap-5 border-t border-white/10 py-3">
+                    <span className="text-white/40">DOM signal</span>
+                    <span className="text-rose-300">Checkout missing</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/60">Visual Check:</span>
-                    <span className="text-rose-400">Missing checkout button</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/60">Time to Alert:</span>
-                    <span className="text-white">[DURATION]</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/60">Root Cause:</span>
-                    <span className="text-white">[CAUSE]</span>
+                  <div className="flex items-center justify-between gap-5 border-t border-white/10 py-3">
+                    <span className="text-white/40">Evidence</span>
+                    <span>Screenshot + browser signals</span>
                   </div>
                 </div>
               </div>
 
-              {/* Real screenshot before/after */}
-              <div className="lg:col-span-7 space-y-6">
-                <div className="grid gap-6 sm:grid-cols-2">
-                  {/* TODO: Replace /public/incident-before.png with real captured baseline screenshot */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[13px] font-medium text-[var(--landing-plum-muted)]">
-                      <span>Baseline capture</span>
-                      <span className="font-mono text-[11px] text-white/50">390 × 844</span>
+              <div>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <figure>
+                    <figcaption className="mb-3 flex items-center justify-between text-[12px] text-white/45">
+                      <span>Accepted baseline</span>
+                      <span className="font-mono">390 × 844</span>
+                    </figcaption>
+                    <div className="overflow-hidden rounded-[18px] bg-black/30 ring-1 ring-white/10">
+                      <Image src="/incident-before.png" alt="Fixture baseline with checkout button present" width={800} height={600} className="h-auto w-full" />
                     </div>
-                    <div className="relative overflow-hidden rounded-lg border border-[var(--landing-plum-border)] bg-black/40">
-                      <Image
-                        src="/incident-before.png"
-                        alt="Mobile baseline screenshot showing working checkout button"
-                        width={800}
-                        height={600}
-                        className="h-auto w-full object-cover"
-                      />
+                  </figure>
+                  <figure>
+                    <figcaption className="mb-3 flex items-center justify-between text-[12px] text-rose-200/75">
+                      <span>Broken render</span>
+                      <span className="font-mono text-white/45">390 × 844</span>
+                    </figcaption>
+                    <div className="overflow-hidden rounded-[18px] bg-black/30 ring-1 ring-rose-300/20">
+                      <Image src="/incident-after.png" alt="Fixture render with checkout button missing" width={800} height={600} className="h-auto w-full" />
                     </div>
-                    <p className="text-[13px] text-[var(--landing-plum-muted)]">
-                      Previous baseline: button present and interactive.
-                    </p>
-                  </div>
-
-                  {/* TODO: Replace /public/incident-after.png with real captured failure screenshot */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[13px] font-medium text-rose-300">
-                      <span>Deploy capture</span>
-                      <span className="font-mono text-[11px] text-white/50">390 × 844</span>
-                    </div>
-                    <div className="relative overflow-hidden rounded-lg border border-rose-500/40 bg-black/40">
-                      <Image
-                        src="/incident-after.png"
-                        alt="Mobile deploy capture showing missing checkout button and broken container"
-                        width={800}
-                        height={600}
-                        className="h-auto w-full object-cover"
-                      />
-                    </div>
-                    <p className="text-[13px] text-rose-300">
-                      Deploy check: button missing while HTTP returned 200.
-                    </p>
-                  </div>
+                  </figure>
                 </div>
+                <p className="mt-5 text-[13px] leading-6 text-white/45">
+                  Deterministic fixture example used to exercise the browser-monitoring pipeline. No invented customer name,
+                  fabricated incident date, or fake “production” claim.
+                </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* 3. What Witch catches */}
-        <section className="mx-auto max-w-5xl px-6 sm:px-10 py-20 sm:py-28">
-          <h2 className="landing-serif text-3xl sm:text-4xl font-medium tracking-tight text-[var(--landing-text)]">
-            What Witch catches
-          </h2>
-          <div className="mt-12 grid gap-x-12 gap-y-10 sm:grid-cols-2">
+        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 sm:px-8 sm:py-28 lg:px-10">
+          <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
             <div>
-              <h3 className="text-[19px] font-semibold text-[var(--landing-text)]">
-                Missing checkout buttons
-              </h3>
-              <p className="landing-sans landing-body mt-2 text-[var(--landing-text-muted)]">
-                Primary conversion buttons vanish after a release while the origin still answers with HTTP 200. Witch confirms that key transaction controls remain present and clickable.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-[19px] font-semibold text-[var(--landing-text)]">
-                Broken mobile layouts
-              </h3>
-              <p className="landing-sans landing-body mt-2 text-[var(--landing-text-muted)]">
-                A page displays cleanly on desktop screens but overflows or hides navigation on mobile devices. Witch inspects a 390px viewport to catch viewport-specific breakages.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-[19px] font-semibold text-[var(--landing-text)]">
-                JavaScript failures
-              </h3>
-              <p className="landing-sans landing-body mt-2 text-[var(--landing-text-muted)]">
-                The server delivers valid HTML, but client-side scripts crash and leave an empty white canvas. Witch monitors uncaught browser exceptions and unrendered components.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-[19px] font-semibold text-[var(--landing-text)]">
-                Visual regressions
-              </h3>
-              <p className="landing-sans landing-body mt-2 text-[var(--landing-text-muted)]">
-                CDN assets fail to resolve, web fonts fail to load, or layout shifts displace content. Witch flags pixel and structural differences against your accepted baseline.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* 4. How it works */}
-        <section id="how" className="mx-auto max-w-4xl px-6 sm:px-10 py-20 sm:py-28 border-t border-[var(--landing-border)] scroll-mt-16">
-          <h2 className="landing-serif text-3xl sm:text-4xl font-medium tracking-tight text-[var(--landing-text)]">
-            How it works
-          </h2>
-          <div className="landing-sans landing-body mt-10 space-y-6 text-[var(--landing-text-muted)]">
-            <p>
-              Every check begins with connection validation. Witch verifies HTTP response codes, TLS certificate validity, and endpoint latency on every plan.
-            </p>
-            <p>
-              On Freelancer and above, Witch loads the URL in a headless Chromium browser across 1440px desktop and 390px mobile viewports. It waits for network idle, executes scripts, and captures a true visual snapshot of the rendered page.
-            </p>
-            <p>
-              When an unexpected change occurs, visual diffing isolates modified regions against your accepted baseline. Paid plans run automated analysis to diagnose failures and attach console errors directly to the incident record.
-            </p>
-          </div>
-        </section>
-
-        {/* 5. For agencies */}
-        <section className="mx-auto max-w-6xl px-6 sm:px-10 py-20 sm:py-28 border-t border-[var(--landing-border)]">
-          <div className="grid gap-12 lg:grid-cols-12 lg:items-center">
-            {/* Real-looking PDF Document Preview (strictly left-aligned, zero rotation) */}
-            <div className="lg:col-span-6">
-              <div className="w-full max-w-md rounded-lg border border-[var(--landing-border-strong)] bg-white p-8 shadow-md">
-                <div className="flex items-center justify-between border-b border-stone-200 pb-4">
-                  <div>
-                    <span className="text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
-                      Monthly Client Maintenance
-                    </span>
-                    <h4 className="text-[16px] font-semibold text-stone-900">
-                      Site Reliability Summary
-                    </h4>
-                  </div>
-                  <span className="text-[12px] font-mono text-stone-500">
-                    October 2026
-                  </span>
-                </div>
-
-                <div className="mt-6 space-y-4 text-[13px]">
-                  <div className="flex justify-between border-b border-stone-100 pb-2">
-                    <span className="text-stone-600">Client Property</span>
-                    <span className="font-medium text-stone-900">client-store.com</span>
-                  </div>
-                  <div className="flex justify-between border-b border-stone-100 pb-2">
-                    <span className="text-stone-600">HTTP &amp; TLS Uptime</span>
-                    <span className="font-medium text-emerald-700">99.98% Healthy</span>
-                  </div>
-                  <div className="flex justify-between border-b border-stone-100 pb-2">
-                    <span className="text-stone-600">Headless Browser Checks</span>
-                    <span className="font-medium text-stone-900">1,440 checks (30m cadence)</span>
-                  </div>
-                  <div className="flex justify-between border-b border-stone-100 pb-2">
-                    <span className="text-stone-600">Incidents Detected &amp; Fixed</span>
-                    <span className="font-medium text-stone-900">1 (Mobile checkout CTA missing)</span>
-                  </div>
-                  <div className="flex justify-between border-b border-stone-100 pb-2">
-                    <span className="text-stone-600">Mean Time to Recovery</span>
-                    <span className="font-medium text-stone-900">18 minutes</span>
-                  </div>
-                  <div className="flex justify-between pb-1">
-                    <span className="text-stone-600">Visual Regressions</span>
-                    <span className="font-medium text-stone-900">0 unresolved</span>
-                  </div>
-                </div>
-
-                <div className="mt-6 rounded border border-stone-200 bg-stone-50 p-3 text-[12px] text-stone-600">
-                  Document generated directly from your browser. Printable and exportable to PDF for client retainers.
-                </div>
-              </div>
-            </div>
-
-            {/* Copy */}
-            <div className="lg:col-span-6">
-              <h2 className="landing-serif text-3xl sm:text-4xl font-medium tracking-tight text-[var(--landing-text)] leading-tight">
-                Monthly reports your clients can actually read
+              <p className="text-[12px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">How it works</p>
+              <h2 className="landing-serif mt-4 text-4xl font-medium leading-tight tracking-[-0.025em] sm:text-5xl">
+                Three layers.
+                <span className="block text-[var(--landing-text-muted)]">One incident timeline.</span>
               </h2>
-              <div className="landing-sans landing-body mt-6 space-y-4 text-[var(--landing-text-muted)]">
-                <p>
-                  Agency retainers often look invisible until something breaks. Witch documents your active care by logging uptime, headless browser verifications, and resolved visual errors.
+            </div>
+            <ol className="divide-y divide-white/[0.07]">
+              {steps.map((step) => (
+                <li key={step.number} className="grid gap-3 py-7 first:pt-0 sm:grid-cols-[54px_1fr]">
+                  <span className="font-mono text-[11px] text-[var(--landing-text-muted)]">{step.number}</span>
+                  <div>
+                    <h3 className="text-[19px] font-medium">{step.title}</h3>
+                    <p className="mt-2 text-[15px] leading-7 text-[var(--landing-text-muted)]">{step.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10">
+          <div className="relative overflow-hidden rounded-[28px] bg-white/[0.035] px-6 py-10 ring-1 ring-white/[0.07] sm:px-10 sm:py-14 lg:px-14">
+            <div
+              className="pointer-events-none absolute right-[-120px] top-[-140px] h-[360px] w-[360px] rounded-full opacity-40 blur-3xl"
+              style={{ background: "rgba(145, 94, 168, .18)" }}
+            />
+            <div className="relative grid gap-10 lg:grid-cols-2 lg:items-center">
+              <div>
+                <p className="text-[12px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">For client work</p>
+                <h2 className="landing-serif mt-4 text-4xl font-medium leading-tight tracking-[-0.025em] sm:text-5xl">
+                  Make invisible maintenance visible.
+                </h2>
+                <p className="mt-5 max-w-xl text-[16px] leading-7 text-[var(--landing-text-muted)]">
+                  Witch keeps a record of checks, incidents, recoveries, and visual evidence. Agency plans add team access,
+                  longer history, and reports you can open in the app and print or save as PDF.
                 </p>
-                <p>
-                  Open the report directly in your dashboard and print clean, professional PDFs without third-party generation services.
+              </div>
+
+              <div className="bg-[#f4f1ec] p-6 text-[#191818] shadow-2xl sm:p-8">
+                <div className="flex items-start justify-between gap-4 border-b border-black/10 pb-5">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/45">Example report</p>
+                    <h3 className="mt-1 text-[17px] font-semibold">Monthly reliability summary</h3>
+                  </div>
+                  <span className="font-mono text-[10px] text-black/40">30 days</span>
+                </div>
+                <dl className="mt-5 space-y-4 text-[13px]">
+                  <div className="flex justify-between gap-5">
+                    <dt className="text-black/50">HTTP uptime</dt>
+                    <dd className="font-medium">Included</dd>
+                  </div>
+                  <div className="flex justify-between gap-5 border-t border-black/10 pt-4">
+                    <dt className="text-black/50">Browser checks</dt>
+                    <dd className="font-medium">Desktop + mobile</dd>
+                  </div>
+                  <div className="flex justify-between gap-5 border-t border-black/10 pt-4">
+                    <dt className="text-black/50">Incidents</dt>
+                    <dd className="font-medium">Detected + resolved</dd>
+                  </div>
+                  <div className="flex justify-between gap-5 border-t border-black/10 pt-4">
+                    <dt className="text-black/50">Visual evidence</dt>
+                    <dd className="font-medium">Attached when available</dd>
+                  </div>
+                </dl>
+                <p className="mt-6 border-t border-black/10 pt-4 text-[11px] leading-5 text-black/45">
+                  Illustrative layout. Report values come from the monitored workspace, not from marketing sample data.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* 6. Founder note */}
-        <section className="mx-auto max-w-4xl px-6 sm:px-10 py-20 sm:py-28 border-t border-[var(--landing-border)]">
-          <div className="flex flex-col sm:flex-row gap-8 items-start">
-            {/* Photo placeholder */}
-            <div className="shrink-0">
-              <div className="h-20 w-20 rounded-full border border-[var(--landing-border-strong)] bg-stone-200 flex items-center justify-center text-[12px] font-medium text-stone-600">
-                Photo
-              </div>
-            </div>
+        <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 sm:px-8 sm:py-28 lg:px-10">
+          <div className="max-w-2xl">
+            <p className="text-[12px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">Pricing</p>
+            <h2 className="landing-serif mt-4 text-4xl font-medium tracking-[-0.025em] sm:text-5xl">
+              Start small. Upgrade when the browser matters.
+            </h2>
+            <p className="mt-5 text-[16px] leading-7 text-[var(--landing-text-muted)]">
+              Free covers basic availability. Paid plans unlock Chromium, visual monitoring, alerts, AI analysis, and longer history.
+            </p>
+          </div>
 
-            {/* First-person paragraph */}
-            <div className="space-y-4">
-              <h3 className="landing-serif text-2xl sm:text-3xl font-medium text-[var(--landing-text)]">
-                Why I built Witch
-              </h3>
-              <p className="landing-sans landing-body text-[var(--landing-text-muted)]">
-                I spent years maintaining web projects for clients where traditional monitors gave a false sense of security. A deployment would slip through with a broken script or a missing form, and the uptime ping stayed green while clients lost leads. I built Witch so independent developers and agency teams would receive alerts the moment a real browser cannot load their interface properly.
-              </p>
-              <p className="text-[16px] font-medium text-[var(--landing-text)]">
-                [FOUNDER_NAME]
-              </p>
-            </div>
+          <div className="mt-14 divide-y divide-white/[0.07] border-y border-white/[0.07]">
+            {plans.map((plan) => (
+              <div
+                key={plan.name}
+                className={
+                  "grid gap-7 py-8 lg:grid-cols-[190px_120px_1fr_auto] lg:items-center " +
+                  (plan.accent ? "bg-white/[0.025] -mx-4 px-4 sm:-mx-6 sm:px-6" : "")
+                }
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[18px] font-medium">{plan.name}</h3>
+                    {plan.accent ? (
+                      <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-[10px] text-[var(--landing-text-muted)]">popular</span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-[12px] text-[var(--landing-text-muted)]">{plan.note}</p>
+                </div>
+                <p className="text-3xl font-medium tracking-tight">
+                  {plan.price}
+                  {plan.price !== "$0" ? <span className="ml-1 text-[11px] font-normal text-[var(--landing-text-muted)]">/mo</span> : null}
+                </p>
+                <ul className="grid gap-x-8 gap-y-2 text-[13px] text-[var(--landing-text-muted)] sm:grid-cols-2">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-center gap-2">
+                      <span className="h-1 w-1 shrink-0 rounded-full bg-[var(--landing-text-muted)]" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/signup"
+                  className={
+                    plan.accent
+                      ? "inline-flex h-10 items-center justify-center rounded-full bg-[var(--landing-text)] px-5 text-[13px] font-semibold text-[var(--landing-bg)] transition-opacity hover:opacity-90"
+                      : "inline-flex h-10 items-center justify-center rounded-full bg-white/[0.055] px-5 text-[13px] font-semibold text-[var(--landing-text)] transition-colors hover:bg-white/[0.09]"
+                  }
+                >
+                  {plan.price === "$0" ? "Start free" : "Get started"}
+                </Link>
+              </div>
+            ))}
           </div>
         </section>
 
-        {/* 7. Pricing (Horizontal rows / comparison list) */}
-        <section id="pricing" className="mx-auto max-w-6xl px-6 sm:px-10 py-20 sm:py-28 border-t border-[var(--landing-border)] scroll-mt-16">
-          <h2 className="landing-serif text-3xl sm:text-4xl font-medium tracking-tight text-[var(--landing-text)]">
-            Simple, predictable plans
-          </h2>
-          <p className="landing-sans landing-body mt-4 text-[var(--landing-text-muted)] max-w-2xl">
-            Start with free HTTP checks. Upgrade to Freelancer or Agency when you need headless Chromium rendering, mobile viewports, and visual diff alerts.
-          </p>
-
-          <div className="mt-12 space-y-4">
-            {/* Free */}
-            <div className="rounded-xl border border-[var(--landing-border)] bg-[var(--surface-raised)] p-6 sm:p-8 transition-colors">
-              <div className="grid gap-6 lg:grid-cols-12 lg:items-center">
-                <div className="lg:col-span-3">
-                  <h3 className="text-xl font-semibold text-[var(--landing-text)]">Free</h3>
-                  <div className="mt-2 text-3xl font-medium tracking-tight text-[var(--landing-text)]">
-                    $0
-                    <span className="text-[14px] font-normal text-[var(--landing-text-muted)]"> forever</span>
-                  </div>
-                  <p className="mt-1 text-[14px] text-[var(--landing-text-muted)]">
-                    HTTP monitoring for one public site.
-                  </p>
-                </div>
-                <div className="lg:col-span-6">
-                  <ul className="grid gap-2 text-[14px] text-[var(--landing-text)] sm:grid-cols-2">
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      1 site
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      HTTP, TLS, and latency
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      30-minute interval
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      7-day history
-                    </li>
-                    <li className="flex items-center gap-2 sm:col-span-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      Public status page
-                    </li>
-                  </ul>
-                </div>
-                <div className="lg:col-span-3 lg:text-right">
-                  <Link
-                    href="/signup"
-                    className="inline-flex h-11 w-full lg:w-auto items-center justify-center rounded-md border border-[var(--landing-border-strong)] bg-[var(--surface-overlay)] px-5 text-[14px] font-medium text-[var(--landing-text)] hover:bg-[var(--surface-subtle)] transition-colors"
-                  >
-                    Start free
-                  </Link>
-                </div>
+        <section className="mx-auto max-w-4xl px-5 py-20 sm:px-8 sm:py-28">
+          <h2 className="landing-serif text-4xl font-medium tracking-[-0.025em] sm:text-5xl">A few useful answers.</h2>
+          <div className="mt-12 divide-y divide-white/[0.07]">
+            {questions.map((item) => (
+              <div key={item.q} className="py-7">
+                <h3 className="text-[18px] font-medium">{item.q}</h3>
+                <p className="mt-3 max-w-3xl text-[15px] leading-7 text-[var(--landing-text-muted)]">{item.a}</p>
               </div>
-            </div>
-
-            {/* Freelancer */}
-            <div className="rounded-xl border border-[var(--landing-border)] bg-[var(--surface-raised)] p-6 sm:p-8 transition-colors">
-              <div className="grid gap-6 lg:grid-cols-12 lg:items-center">
-                <div className="lg:col-span-3">
-                  <h3 className="text-xl font-semibold text-[var(--landing-text)]">Freelancer</h3>
-                  <div className="mt-2 text-3xl font-medium tracking-tight text-[var(--landing-text)]">
-                    $9
-                    <span className="text-[14px] font-normal text-[var(--landing-text-muted)]"> / month</span>
-                  </div>
-                  <p className="mt-1 text-[14px] text-[var(--landing-text-muted)]">
-                    Browser checks and visual diffs for client projects.
-                  </p>
-                </div>
-                <div className="lg:col-span-6">
-                  <ul className="grid gap-2 text-[14px] text-[var(--landing-text)] sm:grid-cols-2">
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      5 sites
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      Chromium on desktop and mobile
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      Visual baselines
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      Email and Discord alerts
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      AI incident analysis
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      Printable monthly reports
-                    </li>
-                  </ul>
-                </div>
-                <div className="lg:col-span-3 lg:text-right">
-                  <Link
-                    href="/signup"
-                    className="inline-flex h-11 w-full lg:w-auto items-center justify-center rounded-md border border-[var(--landing-border-strong)] bg-[var(--surface-overlay)] px-5 text-[14px] font-medium text-[var(--landing-text)] hover:bg-[var(--surface-subtle)] transition-colors"
-                  >
-                    Get started
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            {/* Agency (Highlighted with subtle background tint only, no badge) */}
-            <div className="rounded-xl border border-[var(--landing-accent)]/40 bg-[var(--accent-dim)] p-6 sm:p-8 transition-colors">
-              <div className="grid gap-6 lg:grid-cols-12 lg:items-center">
-                <div className="lg:col-span-3">
-                  <h3 className="text-xl font-semibold text-[var(--landing-text)]">Agency</h3>
-                  <div className="mt-2 text-3xl font-medium tracking-tight text-[var(--landing-text)]">
-                    $24
-                    <span className="text-[14px] font-normal text-[var(--landing-text-muted)]"> / month</span>
-                  </div>
-                  <p className="mt-1 text-[14px] text-[var(--landing-text-muted)]">
-                    Client portfolios and growing teams.
-                  </p>
-                </div>
-                <div className="lg:col-span-6">
-                  <ul className="grid gap-2 text-[14px] text-[var(--landing-text)] sm:grid-cols-2">
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      25 sites
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      Visual diffs with ignore masks
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      Up to 10 members
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      Alerts and reports
-                    </li>
-                    <li className="flex items-center gap-2 sm:col-span-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      90-day history
-                    </li>
-                  </ul>
-                </div>
-                <div className="lg:col-span-3 lg:text-right">
-                  <Link
-                    href="/signup"
-                    className="inline-flex h-11 w-full lg:w-auto items-center justify-center rounded-md bg-[var(--landing-accent)] px-6 text-[14px] font-semibold text-white hover:bg-[var(--landing-accent-hover)] transition-colors shadow-sm"
-                  >
-                    Get started
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            {/* Agency Pro */}
-            <div className="rounded-xl border border-[var(--landing-border)] bg-[var(--surface-raised)] p-6 sm:p-8 transition-colors">
-              <div className="grid gap-6 lg:grid-cols-12 lg:items-center">
-                <div className="lg:col-span-3">
-                  <h3 className="text-xl font-semibold text-[var(--landing-text)]">Agency Pro</h3>
-                  <div className="mt-2 text-3xl font-medium tracking-tight text-[var(--landing-text)]">
-                    $49
-                    <span className="text-[14px] font-normal text-[var(--landing-text-muted)]"> / month</span>
-                  </div>
-                  <p className="mt-1 text-[14px] text-[var(--landing-text-muted)]">
-                    Higher limits, priority checks, longer history.
-                  </p>
-                </div>
-                <div className="lg:col-span-6">
-                  <ul className="grid gap-2 text-[14px] text-[var(--landing-text)] sm:grid-cols-2">
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      75 sites
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      Priority check jitter
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      180-day history
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      Advanced reporting
-                    </li>
-                    <li className="flex items-center gap-2 sm:col-span-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-                      Up to 25 members
-                    </li>
-                  </ul>
-                </div>
-                <div className="lg:col-span-3 lg:text-right">
-                  <Link
-                    href="/signup"
-                    className="inline-flex h-11 w-full lg:w-auto items-center justify-center rounded-md border border-[var(--landing-border-strong)] bg-[var(--surface-overlay)] px-5 text-[14px] font-medium text-[var(--landing-text)] hover:bg-[var(--surface-subtle)] transition-colors"
-                  >
-                    Get started
-                  </Link>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </section>
 
-        {/* 8. FAQ (Exactly 3 questions, max 2 sentences each) */}
-        <section className="mx-auto max-w-4xl px-6 sm:px-10 py-20 sm:py-28 border-t border-[var(--landing-border)]">
-          <h2 className="landing-serif text-3xl sm:text-4xl font-medium tracking-tight text-[var(--landing-text)]">
-            Frequently asked questions
+        <section className="mx-auto max-w-5xl px-5 pb-28 pt-16 text-center sm:px-8 sm:pb-36 sm:pt-24">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">The server is not the product.</p>
+          <h2 className="landing-serif mx-auto mt-5 max-w-3xl text-4xl font-medium leading-tight tracking-[-0.03em] sm:text-6xl">
+            Know when the page stops doing its job.
           </h2>
-          <div className="mt-12 space-y-10">
-            <div>
-              <h3 className="text-[19px] font-semibold text-[var(--landing-text)]">
-                How does Witch differ from uptime monitoring?
-              </h3>
-              <p className="landing-sans landing-body mt-2 text-[var(--landing-text-muted)]">
-                Traditional uptime monitors only ping an endpoint to check for HTTP 200, which stays green even if scripts crash or buttons disappear. Witch loads the page in a headless browser to verify the visual interface and document state that visitors actually see.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-[19px] font-semibold text-[var(--landing-text)]">
-                Will running headless browser checks slow down my site?
-              </h3>
-              <p className="landing-sans landing-body mt-2 text-[var(--landing-text-muted)]">
-                No. Checks run in isolated browser contexts with jitter, concurrency limits, and strict resource abort thresholds for heavy assets. Your production visitors never share sessions or connections with the monitor.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-[19px] font-semibold text-[var(--landing-text)]">
-                What happens when a problem is detected?
-              </h3>
-              <p className="landing-sans landing-body mt-2 text-[var(--landing-text-muted)]">
-                Witch immediately opens an incident record with the visual comparison, DOM snapshot, and browser console logs. Paid plans send alerts to your team through email or Discord and mark the incident resolved once the page recovers.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* 9. Final CTA (One line and one button) */}
-        <section className="mx-auto max-w-4xl px-6 sm:px-10 py-24 sm:py-32 text-center border-t border-[var(--landing-border)]">
-          <h2 className="landing-serif text-3xl sm:text-4xl font-medium tracking-tight text-[var(--landing-text)]">
-            Catch silent breakages before your clients do.
-          </h2>
-          <div className="mt-8">
-            <Link
-              href="/signup"
-              className="inline-flex h-12 items-center justify-center rounded-md bg-[var(--landing-accent)] px-8 text-[15px] font-semibold text-white hover:bg-[var(--landing-accent-hover)] transition-colors shadow-sm"
-            >
-              Start monitoring
-            </Link>
-          </div>
+          <Link
+            href="/signup"
+            className="mt-9 inline-flex h-12 items-center justify-center rounded-full bg-[var(--landing-text)] px-8 text-[14px] font-semibold text-[var(--landing-bg)] transition-transform hover:-translate-y-0.5"
+          >
+            Start monitoring
+          </Link>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--landing-border)] bg-[var(--landing-bg)] py-12">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-6 sm:flex-row sm:px-10 text-[14px] text-[var(--landing-text-muted)]">
-          <Link href="/" className="flex items-center gap-2 text-[var(--landing-text)]">
+      <footer className="border-t border-white/[0.06] py-10">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 text-[13px] text-[var(--landing-text-muted)] sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
+          <Link href="/" aria-label="Witch home" className="text-[var(--landing-text)]">
             <Wordmark />
           </Link>
-          <div className="flex items-center gap-6">
-            <Link href="#how" className="hover:text-[var(--landing-text)] transition-colors">
-              How it works
-            </Link>
-            <Link href="#pricing" className="hover:text-[var(--landing-text)] transition-colors">
-              Pricing
-            </Link>
-            <Link href="/login" className="hover:text-[var(--landing-text)] transition-colors">
-              Sign in
-            </Link>
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
+            <a href="#how" className="transition-colors hover:text-[var(--landing-text)]">How it works</a>
+            <a href="#pricing" className="transition-colors hover:text-[var(--landing-text)]">Pricing</a>
+            <Link href="/login" className="transition-colors hover:text-[var(--landing-text)]">Sign in</Link>
+            <Link href="/signup" className="transition-colors hover:text-[var(--landing-text)]">Create account</Link>
           </div>
         </div>
       </footer>
