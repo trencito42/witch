@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { incidents, monitorChecks, monitors, organizations, sites, subscriptions } from "@/db/schema";
 import { StatusBadge, Badge } from "@/components/ui";
@@ -32,11 +32,11 @@ function buildSite90Days(
 
   for (let i = 89; i >= 0; i--) {
     const dayDate = new Date(now);
-    dayDate.setDate(dayDate.getDate() - i);
-    dayDate.setHours(0, 0, 0, 0);
+    dayDate.setUTCDate(dayDate.getUTCDate() - i);
+    dayDate.setUTCHours(0, 0, 0, 0);
 
     const dayEnd = new Date(dayDate);
-    dayEnd.setHours(23, 59, 59, 999);
+    dayEnd.setUTCHours(23, 59, 59, 999);
 
     const isoDate = dayDate.toISOString().slice(0, 10);
     const dateStr = dayDate.toLocaleDateString("en-US", {
@@ -59,10 +59,12 @@ function buildSite90Days(
     if (siteStatus === "PAUSED" && i === 0) {
       status = "paused";
     } else if (matchingIncidents.length > 0) {
-      const hasCritical = matchingIncidents.some(
-        (inc) => inc.severity === "CRITICAL" || inc.severity === "HIGH",
+      const hasUptimeOutage = matchingIncidents.some(
+        (inc) =>
+          inc.category === "UPTIME" &&
+          (inc.severity === "CRITICAL" || inc.severity === "HIGH"),
       );
-      status = hasCritical ? "down" : "degraded";
+      status = hasUptimeOutage ? "down" : "degraded";
       summary = matchingIncidents.map((inc) => inc.title).join(", ");
     } else if (daily && Number(daily.total) > 0) {
       status = Number(daily.successful) === Number(daily.total) ? "operational" : "degraded";
@@ -160,8 +162,12 @@ export default async function StatusPage({
           and(
             eq(incidents.organizationId, org.id),
             inArray(incidents.siteId, visibleIds),
-            gte(incidents.firstDetectedAt, ninetyDaysAgo),
+            lte(incidents.firstDetectedAt, now),
             inArray(incidents.status, ["OPEN", "ACKNOWLEDGED", "RESOLVED"]),
+            or(
+              inArray(incidents.status, ["OPEN", "ACKNOWLEDGED"]),
+              gte(incidents.resolvedAt, ninetyDaysAgo),
+            ),
           ),
         )
         .orderBy(desc(incidents.firstDetectedAt))
