@@ -1,20 +1,5 @@
 import Link from "next/link";
-import {
-  Activity,
-  Bell,
-  BookOpen,
-  CheckCircle2,
-  CreditCard,
-  Eye,
-  FileText,
-  Globe,
-  KeyRound,
-  Layers3,
-  Play,
-  Settings2,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { BookOpen, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 
 const sections = [
