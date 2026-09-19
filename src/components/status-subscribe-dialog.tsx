@@ -20,7 +20,7 @@ export function StatusSubscribeDialog({
   const [open, setOpen] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [loading, setLoading] = React.useState(false);
-  const [success, setSuccess] = React.useState(false);
+  const [success, setSuccess] = React.useState(false);\n  const [successMessage, setSuccessMessage] = React.useState("Check your inbox to confirm the subscription.");
   const [error, setError] = React.useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,10 +75,10 @@ export function StatusSubscribeDialog({
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <h3 className="text-[15px] font-semibold text-[var(--text)]">
-              You&apos;re subscribed!
+              Check your inbox
             </h3>
             <p className="text-[13px] text-[var(--text-muted)] max-w-xs mx-auto">
-              We&apos;ll notify <span className="font-mono text-[var(--text)]">{email}</span> whenever there is an active incident or service recovery.
+              {successMessage} <span className="font-mono text-[var(--text)]">{email}</span>
             </p>
             <div className="pt-3">
               <Button variant="secondary" onClick={() => setOpen(false)} className="w-full sm:w-auto">
