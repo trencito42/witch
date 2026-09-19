@@ -8,6 +8,9 @@ import {
   monthlyReportEmail,
   passwordResetEmail,
   recoveryEmail,
+  statusIncidentSubscriberEmail,
+  statusRecoverySubscriberEmail,
+  statusSubscriptionConfirmationEmail,
   verificationEmail,
   welcomeEmail,
 } from "@/emails/templates";
@@ -114,4 +117,51 @@ export async function sendMonthlyReportEmail(input: {
 
 export function emailFrom() {
   return getEnv().EMAIL_FROM;
+}
+
+
+export async function sendStatusSubscriptionConfirmationEmail(input: {
+  to: string;
+  organizationName: string;
+  confirmUrl: string;
+}) {
+  if (!emailEnabled()) {
+    throw new Error("Email delivery is not configured.");
+  }
+  await sendMail({
+    to: input.to,
+    subject: `Confirm status updates from ${input.organizationName}`,
+    html: statusSubscriptionConfirmationEmail(input),
+  });
+}
+
+export async function sendStatusIncidentSubscriberEmail(input: {
+  to: string;
+  organizationName: string;
+  siteName: string;
+  title: string;
+  summary: string;
+  statusUrl: string;
+  unsubscribeUrl: string;
+}) {
+  await sendMail({
+    to: input.to,
+    subject: `Incident: ${input.siteName} · ${input.title}`,
+    html: statusIncidentSubscriberEmail(input),
+  });
+}
+
+export async function sendStatusRecoverySubscriberEmail(input: {
+  to: string;
+  organizationName: string;
+  siteName: string;
+  title: string;
+  statusUrl: string;
+  unsubscribeUrl: string;
+}) {
+  await sendMail({
+    to: input.to,
+    subject: `Recovered: ${input.siteName}`,
+    html: statusRecoverySubscriberEmail(input),
+  });
 }
