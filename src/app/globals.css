@@ -226,8 +226,19 @@
 }
 
 .landing-page {
-  background-color: var(--landing-bg);
-  color: var(--landing-text);
+  --landing-bg: #070709;
+  --landing-text: #ede6da;
+  --landing-text-muted: #a79da6;
+  --landing-text-faint: #7e737d;
+  --landing-border: #2e2732;
+  --landing-border-strong: #43394a;
+  --landing-accent: #f26a2e;
+  --landing-accent-hover: #ff7e47;
+  --landing-surface: #121015;
+  --landing-surface-raised: #1a161d;
+  background-color: #070709;
+  color: #ede6da;
+  color-scheme: dark;
   font-family: var(--font-sans-body), system-ui, -apple-system, sans-serif;
   min-height: 100vh;
 }

@@ -151,7 +151,7 @@ export default function HomePage() {
             </Link>
             <Link
               href="/signup"
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#f0eaf2] px-5 text-[13px] font-semibold text-[#120f14] transition-colors hover:bg-white"
+              className="inline-flex min-h-11 items-center justify-center rounded-md border border-transparent bg-[var(--landing-accent)] px-4 text-[13px] font-semibold text-white shadow-[0_1px_12px_rgba(242,106,46,.2)] transition-colors hover:bg-[var(--landing-accent-hover)] active:brightness-95"
             >
               Start free
             </Link>
@@ -175,7 +175,7 @@ export default function HomePage() {
             <div className="hero-reveal mt-8 sm:mt-9">
               <Link
                 href="/signup"
-                className="inline-flex min-h-12 w-full max-w-[290px] items-center justify-center rounded-full bg-[#f0eaf2] px-7 text-[14px] font-semibold text-[#120f14] shadow-[0_16px_46px_rgba(18,8,22,.2)] transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-white sm:w-auto sm:max-w-none"
+                className="inline-flex min-h-12 w-full max-w-[290px] items-center justify-center rounded-lg border border-transparent bg-[var(--landing-accent)] px-7 text-[14px] font-semibold text-white shadow-[0_1px_12px_rgba(242,106,46,.22)] transition-colors hover:bg-[var(--landing-accent-hover)] active:brightness-95 sm:w-auto sm:max-w-none"
               >
                 Monitor your first site
               </Link>
@@ -378,10 +378,10 @@ export default function HomePage() {
                 <Link
                   href="/signup"
                   className={
-                    "inline-flex min-h-10 w-full items-center justify-center rounded-full px-5 text-[12px] font-semibold sm:col-span-2 lg:col-span-1 lg:w-auto " +
+                    "inline-flex min-h-10 w-full items-center justify-center rounded-md border px-5 text-[12px] font-semibold transition-colors sm:col-span-2 lg:col-span-1 lg:w-auto " +
                     (plan.featured
-                      ? "bg-[var(--landing-text)] text-[var(--landing-bg)]"
-                      : "bg-white/[0.055] text-[var(--landing-text)]")
+                      ? "border-transparent bg-[var(--landing-accent)] text-white shadow-[0_1px_12px_rgba(242,106,46,.18)] hover:bg-[var(--landing-accent-hover)]"
+                      : "border-[var(--landing-border)] bg-[var(--landing-surface-raised)] text-[var(--landing-text)] hover:border-[var(--landing-border-strong)] hover:bg-[var(--landing-surface)]")
                   }
                 >
                   {plan.price === "$0" ? "Start free" : "Get started"}
@@ -417,7 +417,7 @@ export default function HomePage() {
           </h2>
           <Link
             href="/signup"
-            className="mt-7 inline-flex min-h-12 w-full max-w-xs items-center justify-center rounded-full bg-[var(--landing-text)] px-7 text-[14px] font-semibold text-[var(--landing-bg)] sm:w-auto"
+            className="mt-7 inline-flex min-h-12 w-full max-w-xs items-center justify-center rounded-lg border border-transparent bg-[var(--landing-accent)] px-7 text-[14px] font-semibold text-white shadow-[0_1px_12px_rgba(242,106,46,.2)] transition-colors hover:bg-[var(--landing-accent-hover)] active:brightness-95 sm:w-auto"
           >
             Start monitoring
           </Link>
