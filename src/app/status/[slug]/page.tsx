@@ -139,7 +139,7 @@ export default async function StatusPage({
     const staleAfterMs = Math.max(15 * 60 * 1000, intervalSeconds * 3 * 1000);
     return now.getTime() - site.lastCheckedAt.getTime() > staleAfterMs;
   };
-  const staleSites = orgSites.filter(isTelemetryStale);
+  const staleSites = orgSites.filter((site) => site.status !== "PAUSED" && isTelemetryStale(site));
 
   const hasDown = orgSites.some((site) => site.status === "DOWN");
   const hasDegraded = orgSites.some((site) => site.status === "DEGRADED");
@@ -338,22 +338,19 @@ export default async function StatusPage({
             ) : (
               orgSites.map((site) => {
                 const telemetryStale = isTelemetryStale(site);
-                const siteStatus = telemetryStale
-                  ? "warning"
-                  :
+                const siteStatus =
                   site.status === "DOWN"
                     ? "critical"
                     : site.status === "DEGRADED"
                       ? "warning"
                       : site.status === "PAUSED"
                         ? "neutral"
-                        : site.status === "UNKNOWN"
+                        : site.status === "UNKNOWN" || telemetryStale
                           ? "warning"
                           : "healthy";
 
-                const badgeLabel = telemetryStale
-                  ? "Check delayed"
-                  : site.status === "DOWN"
+                const badgeLabel =
+                  site.status === "DOWN"
                     ? "Outage"
                     : site.status === "DEGRADED"
                       ? "Degraded"
@@ -361,7 +358,9 @@ export default async function StatusPage({
                         ? "Paused"
                         : site.status === "UNKNOWN"
                           ? "Unknown"
-                          : "Operational";
+                          : telemetryStale
+                            ? "Check delayed"
+                            : "Operational";
 
                 const historyData = buildSite90Days(site.id, site.status, pastIncidents, dailyHttpChecks, now);
 
