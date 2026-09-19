@@ -1,22 +1,32 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { and, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { incidents, organizations, sites } from "@/db/schema";
+import { incidents, monitorChecks, monitors, organizations, sites } from "@/db/schema";
 import { StatusBadge, Badge } from "@/components/ui";
 import { Wordmark } from "@/components/logo";
 import { Globe, ShieldCheck, Clock, ExternalLink } from "lucide-react";
 import { UptimeHistoryBar, type DayUptime } from "@/components/uptime-history-bar";
 import { StatusSubscribeDialog } from "@/components/status-subscribe-dialog";
 
+type DailyHttpCheck = {
+  siteId: string;
+  day: string;
+  total: number;
+  successful: number;
+};
+
 function buildSite90Days(
   siteId: string,
   siteStatus: string,
   siteIncidents: Array<typeof incidents.$inferSelect>,
-  now: Date
+  dailyChecks: DailyHttpCheck[],
+  now: Date,
 ) {
   const days: DayUptime[] = [];
-  let healthyDaysCount = 0;
+  const siteChecks = dailyChecks.filter((row) => row.siteId === siteId);
+  const totalChecks = siteChecks.reduce((sum, row) => sum + Number(row.total || 0), 0);
+  const successfulChecks = siteChecks.reduce((sum, row) => sum + Number(row.successful || 0), 0);
 
   for (let i = 89; i >= 0; i--) {
     const dayDate = new Date(now);
@@ -39,20 +49,24 @@ function buildSite90Days(
       const end = inc.resolvedAt || now;
       return start <= dayEnd && end >= dayDate;
     });
+    const daily = siteChecks.find((row) => row.day === isoDate);
 
-    let status: "operational" | "degraded" | "down" | "paused" = "operational";
-    let summary: string | undefined = undefined;
+    let status: DayUptime["status"] = "unknown";
+    let summary: string | undefined;
 
     if (siteStatus === "PAUSED" && i === 0) {
       status = "paused";
     } else if (matchingIncidents.length > 0) {
       const hasCritical = matchingIncidents.some(
-        (inc) => inc.severity === "CRITICAL" || inc.severity === "HIGH"
+        (inc) => inc.severity === "CRITICAL" || inc.severity === "HIGH",
       );
       status = hasCritical ? "down" : "degraded";
       summary = matchingIncidents.map((inc) => inc.title).join(", ");
-    } else {
-      healthyDaysCount++;
+    } else if (daily && Number(daily.total) > 0) {
+      status = Number(daily.successful) === Number(daily.total) ? "operational" : "degraded";
+      if (status === "degraded") {
+        summary = String(Number(daily.total) - Number(daily.successful)) + " failed HTTP check(s)";
+      }
     }
 
     days.push({
@@ -64,9 +78,10 @@ function buildSite90Days(
     });
   }
 
-  const uptimePercentage = Math.min(100, Math.round((healthyDaysCount / 90) * 10000) / 100);
+  const uptimePercentage =
+    totalChecks > 0 ? Math.min(100, Math.round((successfulChecks / totalChecks) * 10000) / 100) : null;
 
-  return { days, uptimePercentage };
+  return { days, uptimePercentage, totalChecks };
 }
 
 export default async function StatusPage({
@@ -137,6 +152,26 @@ export default async function StatusPage({
         )
         .orderBy(desc(incidents.firstDetectedAt))
         .limit(50)
+    : [];
+
+  const dailyHttpChecks = visibleIds.length
+    ? await db
+        .select({
+          siteId: monitorChecks.siteId,
+          day: sql<string>`DATE(${monitorChecks.createdAt})`,
+          total: sql<number>`COUNT(*)`,
+          successful: sql<number>`SUM(CASE WHEN ${monitorChecks.success} = 1 THEN 1 ELSE 0 END)`,
+        })
+        .from(monitorChecks)
+        .innerJoin(monitors, eq(monitors.id, monitorChecks.monitorId))
+        .where(
+          and(
+            inArray(monitorChecks.siteId, visibleIds),
+            eq(monitors.type, "HTTP"),
+            gte(monitorChecks.createdAt, ninetyDaysAgo),
+          ),
+        )
+        .groupBy(monitorChecks.siteId, sql`DATE(${monitorChecks.createdAt})`)
     : [];
 
   const freshestCheck = orgSites
@@ -272,7 +307,7 @@ export default async function StatusPage({
                           ? "Unknown"
                           : "Operational";
 
-                const historyData = buildSite90Days(site.id, site.status, pastIncidents, now);
+                const historyData = buildSite90Days(site.id, site.status, pastIncidents, dailyHttpChecks, now);
 
                 return (
                   <div key={site.id} className="p-5 sm:p-6 space-y-4 hover:bg-[var(--surface-overlay)]/40 transition-colors">
@@ -334,7 +369,7 @@ export default async function StatusPage({
                 No incidents reported
               </h3>
               <p className="text-[13px] text-[var(--text-muted)] max-w-md mx-auto leading-relaxed">
-                All production endpoints have maintained 100% operational uptime over the past 90 days.
+                No public incidents are recorded in this 90-day window. HTTP uptime is shown only for periods where Witch has actual check data.
               </p>
             </div>
           ) : (
