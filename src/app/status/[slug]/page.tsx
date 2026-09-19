@@ -2,12 +2,12 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { incidents, monitorChecks, monitors, organizations, sites } from "@/db/schema";
+import { incidents, monitorChecks, monitors, organizations, sites, subscriptions } from "@/db/schema";
 import { StatusBadge, Badge } from "@/components/ui";
 import { Wordmark } from "@/components/logo";
 import { Globe, ShieldCheck, Clock, ExternalLink } from "lucide-react";
 import { UptimeHistoryBar, type DayUptime } from "@/components/uptime-history-bar";
-import { StatusSubscribeDialog } from "@/components/status-subscribe-dialog";
+import { StatusSubscribeDialog } from "@/components/status-subscribe-dialog";\nimport { emailEnabled } from "@/lib/env";\nimport { canUseEmailAlerts, getEffectivePlan } from "@/lib/plans";
 
 type DailyHttpCheck = {
   siteId: string;
@@ -98,6 +98,12 @@ export default async function StatusPage({
 
   if (!org) notFound();
 
+  const [subscription] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.organizationId, org.id))
+    .limit(1);
+
   const orgSites = await db
     .select()
     .from(sites)
@@ -183,7 +189,7 @@ export default async function StatusPage({
     freshestCheck && Date.now() - freshestCheck.getTime() < 2 * 60 * 60 * 1000;
 
   const showHistoryBars = org.statusPageShowHistoryBars ?? true;
-  const allowSubscribe = org.statusPageAllowSubscribe ?? true;
+  const allowSubscribe = Boolean(org.statusPageAllowSubscribe) && emailEnabled() && canUseEmailAlerts(getEffectivePlan(subscription).id);
 
   return (
     <div className="min-h-screen bg-[var(--surface-canvas)] text-[var(--text)] flex flex-col selection:bg-[var(--accent)]/30 font-sans">
