@@ -5,7 +5,10 @@ export type BoundingBox = {
   height: number;
 };
 
-export type IgnoreRegion = BoundingBox & { reason?: string };
+export type IgnoreRegion = BoundingBox & {
+  reason?: string;
+  source?: "manual" | "cookie" | "chat" | "marketing" | "ad" | "promo" | string;
+};
 
 function cellKey(x: number, y: number) {
   return `${x},${y}`;

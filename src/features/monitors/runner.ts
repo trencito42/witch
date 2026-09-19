@@ -9,6 +9,7 @@ import {
   visualSnapshots,
   type Monitor,
   type Site,
+  type VisualNoiseSettings,
 } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { getEnv } from "@/lib/env";
@@ -132,12 +133,15 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
   }
   const viewport = (monitor.viewport as "desktop" | "mobile") ?? "desktop";
   const ignoreSelectors = Array.isArray(site.ignoreSelectors) ? (site.ignoreSelectors as string[]) : [];
+  const noiseSettings = (site.visualNoiseSettings as VisualNoiseSettings) ?? undefined;
   const result = await runBrowserCheck({
     url: site.url,
     viewport,
     selector: monitor.selector,
     expectedText: monitor.expectedText,
     ignoreSelectors,
+    colorScheme: noiseSettings?.colorScheme,
+    visualNoiseSettings: noiseSettings,
   });
   const checkId = newId();
   await db.insert(monitorChecks).values({
@@ -161,6 +165,7 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
       navigationTiming: result.navigationTiming,
       elementFound: result.elementFound,
       pageStabilized: result.pageStabilized,
+      stabilization: result.stabilization,
     },
     createdAt: new Date(),
   });

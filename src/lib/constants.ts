@@ -50,11 +50,11 @@ export const MAX_SNAPSHOT_BYTES = 8 * 1024 * 1024;
 export const MAX_DOM_TEXT_CHARS = 20_000;
 export const MAX_CONSOLE_EVENTS = 40;
 export const MAX_FAILED_REQUESTS = 80;
-export const MAX_BROWSER_REQUESTS = 40;
-export const MAX_BROWSER_BYTES = 8 * 1024 * 1024;
-export const MAX_BROWSER_INFLIGHT = 4;
-export const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;
-export const MAX_SUBRESOURCE_BYTES = 1 * 1024 * 1024;
+export const MAX_BROWSER_REQUESTS = 250;
+export const MAX_BROWSER_BYTES = 32 * 1024 * 1024;
+export const MAX_BROWSER_INFLIGHT = 16;
+export const MAX_DOCUMENT_BYTES = 8 * 1024 * 1024;
+export const MAX_SUBRESOURCE_BYTES = 10 * 1024 * 1024;
 export const JOB_RETENTION_DAYS = 7;
 
 export const ORG_COOKIE = "witch_org";

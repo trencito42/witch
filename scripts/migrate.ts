@@ -55,6 +55,9 @@ async function main() {
   if (await columnExists("subscription", "last_stripe_event_created")) {
     await markApplied("0002_launch_fixes.sql");
   }
+  if (await columnExists("site", "visual_noise_settings")) {
+    await markApplied("0003_visual_monitoring.sql");
+  }
 
   const dir = path.resolve("drizzle");
   const files = (await readdir(dir))

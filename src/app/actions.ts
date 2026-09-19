@@ -8,7 +8,7 @@ import { createSite, deleteSite, pauseSite, queueManualCheck, getSiteForOrg } fr
 import { acknowledgeIncident, ignoreIncident, resolveIncident } from "@/features/incidents/service";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { jobs, monitors, sites, visualSnapshots, organizations, users, alertChannels, sessions } from "@/db/schema";
+import { jobs, monitors, sites, visualSnapshots, organizations, users, alertChannels, sessions, statusPageSubscribers, type VisualNoiseSettings } from "@/db/schema";
 import { writeAudit } from "@/server/audit";
 import { INTERVALS_SECONDS } from "@/lib/constants";
 import { minIntervalForMonitor, canUseEmailAlerts, canUseBrowserMonitoring } from "@/lib/plans";
@@ -87,11 +87,38 @@ export async function actionUpdateSite(siteId: string, formData: FormData) {
   assertWritable(ctx);
   const name = nameSchema.parse(formString(formData, "name"));
   const sensitivity = z.enum(["LOW", "MEDIUM", "HIGH"]).parse(formString(formData, "visualSensitivity"));
+
+  const rawSelectors = formString(formData, "ignoreSelectors");
+  const ignoreSelectors = rawSelectors
+    ? rawSelectors
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+
+  const rawColorScheme = formString(formData, "colorScheme");
+  const colorScheme = ["light", "dark", "default"].includes(rawColorScheme)
+    ? (rawColorScheme as "light" | "dark" | "default")
+    : "light";
+
+  const visualNoiseSettings: VisualNoiseSettings = {
+    ignoreCookieConsent: formData.get("ignoreCookieConsent") === "on",
+    ignoreChatWidgets: formData.get("ignoreChatWidgets") === "on",
+    ignoreMarketingPopups: formData.get("ignoreMarketingPopups") === "on",
+    ignoreAds: formData.get("ignoreAds") === "on",
+    ignoreStickyPromos: formData.get("ignoreStickyPromos") === "on",
+    cleanCapture: formData.get("cleanCapture") === "on",
+    autoDismissConsent: formData.get("autoDismissConsent") === "on",
+    colorScheme,
+  };
+
   await db
     .update(sites)
     .set({
       name,
       visualSensitivity: sensitivity,
+      ignoreSelectors,
+      visualNoiseSettings,
       statusPageVisible: formData.get("statusPageVisible") === "on",
       updatedAt: new Date(),
     })
@@ -252,10 +279,18 @@ export async function actionUpdateStatusPage(formData: FormData) {
   const enabled = formData.get("statusPageEnabled") === "on";
   const rawSlug = formString(formData, "statusPageSlug");
   const rawHeadline = formString(formData, "statusPageHeadline");
+  const rawSubheadline = formString(formData, "statusPageSubheadline");
+  const allowSubscribe = formData.get("statusPageAllowSubscribe") === "on";
+  const showHistoryBars = formData.get("statusPageShowHistoryBars") === "on";
+
   const statusPageSlug = rawSlug || enabled ? slugSchema.parse(rawSlug) : null;
   const statusPageHeadline = rawHeadline
     ? z.string().trim().max(160, "Headline is too long").parse(rawHeadline)
     : null;
+  const statusPageSubheadline = rawSubheadline
+    ? z.string().trim().max(255, "Subheadline is too long").parse(rawSubheadline)
+    : null;
+
   if (statusPageSlug) {
     const existing = await db
       .select({ id: organizations.id })
@@ -272,10 +307,50 @@ export async function actionUpdateStatusPage(formData: FormData) {
       statusPageEnabled: enabled,
       statusPageSlug,
       statusPageHeadline,
+      statusPageSubheadline,
+      statusPageAllowSubscribe: allowSubscribe,
+      statusPageShowHistoryBars: showHistoryBars,
       updatedAt: new Date(),
     })
     .where(eq(organizations.id, ctx.organizationId));
   revalidatePath("/settings");
+}
+
+export async function actionSubscribeStatusPage(formData: FormData) {
+  const organizationId = formString(formData, "organizationId");
+  const rawEmail = formString(formData, "email");
+  const email = emailSchema.parse(rawEmail.toLowerCase());
+
+  const [org] = await db
+    .select({
+      id: organizations.id,
+      statusPageEnabled: organizations.statusPageEnabled,
+      statusPageAllowSubscribe: organizations.statusPageAllowSubscribe,
+    })
+    .from(organizations)
+    .where(eq(organizations.id, organizationId))
+    .limit(1);
+
+  if (!org || !org.statusPageEnabled || !org.statusPageAllowSubscribe) {
+    throw new Error("Subscriptions are not enabled for this status page.");
+  }
+
+  const existing = await db
+    .select({ id: statusPageSubscribers.id })
+    .from(statusPageSubscribers)
+    .where(and(eq(statusPageSubscribers.organizationId, organizationId), eq(statusPageSubscribers.email, email)))
+    .limit(1);
+
+  if (!existing[0]) {
+    await db.insert(statusPageSubscribers).values({
+      id: newId(),
+      organizationId,
+      email,
+      createdAt: new Date(),
+    });
+  }
+
+  return { success: true, message: "You are subscribed to status updates." };
 }
 
 export async function actionInvite(formData: FormData) {

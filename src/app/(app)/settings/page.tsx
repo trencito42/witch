@@ -140,6 +140,7 @@ export default async function SettingsPage({
               </div>
 
               <Button type="submit" variant="primary" className="w-full sm:w-auto">
+                Save changes
               </Button>
             </form>
           </section>
@@ -385,6 +386,30 @@ export default async function SettingsPage({
                 placeholder="All Systems Operational"
               />
             </div>
+
+            <div>
+              <Label htmlFor="statusPageSubheadline">Custom Subheadline / Announcement</Label>
+              <Input
+                id="statusPageSubheadline"
+                name="statusPageSubheadline"
+                defaultValue={org?.statusPageSubheadline ?? ""}
+                placeholder="Real-time uptime and incident history across all production services."
+              />
+            </div>
+
+            <SwitchRow
+              title="Allow Visitor Subscriptions"
+              description="Visitors can subscribe with their email to receive automated incident and recovery notifications."
+              name="statusPageAllowSubscribe"
+              defaultChecked={org?.statusPageAllowSubscribe ?? true}
+            />
+
+            <SwitchRow
+              title="Display 90-Day Visual Uptime Bars"
+              description="Show interactive 90-day segmented history bars with daily status for each monitored endpoint."
+              name="statusPageShowHistoryBars"
+              defaultChecked={org?.statusPageShowHistoryBars ?? true}
+            />
 
             <div className="pt-2 flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3">
               <Button type="submit" variant="primary" className="w-full sm:w-auto">

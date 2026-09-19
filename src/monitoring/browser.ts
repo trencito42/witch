@@ -10,7 +10,8 @@ import { ImageNormalizeError, normalizeScreenshot } from "./image";
 import { collectIgnoreRegionsInPage, ignoreRegionCollectorArgs } from "./masks";
 import type { IgnoreRegion } from "./regions";
 import { FetchBudget, fetchPinned, publicHeadersFromRequest } from "@/lib/pinned-fetch";
-import { stabilizePage } from "./stabilize";
+import { stabilizePage, type StabilizeResult } from "./stabilize";
+import { type VisualNoiseConfig } from "./noise";
 
 export type BrowserCheckResult = {
   success: boolean;
@@ -32,6 +33,7 @@ export type BrowserCheckResult = {
   elementFound?: boolean;
   elementText?: string | null;
   pageStabilized: boolean;
+  stabilization?: StabilizeResult;
   ignoreRegions: IgnoreRegion[];
 };
 
@@ -98,6 +100,8 @@ export async function runBrowserCheck(input: {
   selector?: string | null;
   expectedText?: string | null;
   ignoreSelectors?: string[];
+  colorScheme?: "light" | "dark" | "default";
+  visualNoiseSettings?: VisualNoiseConfig;
 }): Promise<BrowserCheckResult> {
   const startedAt = new Date();
   const env = getEnv();
@@ -111,6 +115,9 @@ export async function runBrowserCheck(input: {
   try {
     const validated = await assertPublicHttpUrl(input.url);
     const browser = await getBrowser();
+    const effectiveColorScheme: "light" | "dark" =
+      input.colorScheme === "dark" ? "dark" : "light";
+
     context = await browser.newContext({
       viewport: { width: viewport.width, height: viewport.height },
       javaScriptEnabled: true,
@@ -118,7 +125,7 @@ export async function runBrowserCheck(input: {
       ignoreHTTPSErrors: false,
       bypassCSP: false,
       permissions: [],
-      colorScheme: "light",
+      colorScheme: effectiveColorScheme,
       locale: "en-US",
       timezoneId: "UTC",
       userAgent: `Mozilla/5.0 (compatible; WitchMonitor/1.0; +https://witch.pw) ${
@@ -166,6 +173,9 @@ export async function runBrowserCheck(input: {
     });
 
     const page = await context.newPage();
+    context.on("page", (newPage) => {
+      if (newPage !== page) newPage.close().catch(() => {});
+    });
     page.setDefaultTimeout(env.BROWSER_CHECK_TIMEOUT_MS);
     page.on("console", (msg) => {
       if (msg.type() === "error" && consoleErrors.length < MAX_CONSOLE_EVENTS) {
@@ -207,7 +217,7 @@ export async function runBrowserCheck(input: {
       timeout: Math.min(env.BROWSER_CHECK_TIMEOUT_MS, 25_000),
     });
     const stabilize = await stabilizePage(page, {
-      timeoutMs: Math.min(5_000, env.BROWSER_CHECK_TIMEOUT_MS / 6),
+      timeoutMs: Math.min(8_000, env.BROWSER_CHECK_TIMEOUT_MS / 3),
     });
 
     let elementFound: boolean | undefined;
@@ -227,8 +237,15 @@ export async function runBrowserCheck(input: {
     }
 
     const ignoreRegions = await page
-      .evaluate(collectIgnoreRegionsInPage, ignoreRegionCollectorArgs(input.ignoreSelectors ?? []))
+      .evaluate(
+        collectIgnoreRegionsInPage,
+        ignoreRegionCollectorArgs(input.ignoreSelectors ?? [], input.visualNoiseSettings),
+      )
       .catch(() => [] as IgnoreRegion[]);
+
+    if (input.visualNoiseSettings?.cleanCapture) {
+      await page.waitForTimeout(150);
+    }
 
     const rawScreenshot = await page.screenshot({
       type: "png",
@@ -278,6 +295,7 @@ export async function runBrowserCheck(input: {
       elementFound,
       elementText,
       pageStabilized: stabilize.stabilized,
+      stabilization: stabilize,
       ignoreRegions,
     };
   } catch (error) {

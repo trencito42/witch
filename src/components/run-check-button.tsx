@@ -7,7 +7,13 @@ import { Button } from "@/components/ui";
 import { Play, Loader2, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
-export function RunCheckButton({ siteId }: { siteId: string }) {
+export function RunCheckButton({
+  siteId,
+  compactOnMobile,
+}: {
+  siteId: string;
+  compactOnMobile?: boolean;
+}) {
   const [state, setState] = useState<"idle" | "queued" | "checking" | "done" | "failed">("idle");
   const [jobIds, setJobIds] = useState<string[]>([]);
   const [pending, start] = useTransition();
@@ -63,11 +69,14 @@ export function RunCheckButton({ siteId }: { siteId: string }) {
     };
   }, [state, jobIds, router, toast]);
 
+  const labelClass = compactOnMobile ? "hidden sm:inline" : "";
+
   return (
     <Button
       type="button"
       variant={state === "done" ? "outline" : state === "failed" ? "danger" : "secondary"}
       disabled={pending || state === "queued" || state === "checking"}
+      aria-label={state === "idle" ? "Run check" : state}
       onClick={() =>
         start(async () => {
           setState("queued");
@@ -81,45 +90,42 @@ export function RunCheckButton({ siteId }: { siteId: string }) {
           setState("checking");
         })
       }
-      className={
+      className={`touch-target ${
         state === "checking"
-          ? "border-[rgba(187,242,176,0.4)] text-[var(--accent)]"
+          ? "border-[rgba(217,72,15,0.4)] text-[var(--accent)]"
           : state === "done"
-            ? "border-[rgba(52,211,153,0.4)] text-[var(--healthy)]"
+            ? "border-[rgba(47,125,79,0.4)] text-[var(--healthy)]"
             : ""
-      }
+      }`}
     >
       {state === "idle" && (
         <>
-          <Play className="h-3.5 w-3.5 text-[var(--accent)]" />
-          <span>Run check</span>
+          <Play className="h-4 w-4 text-[var(--accent)]" />
+          <span className={labelClass}>Run check</span>
         </>
       )}
       {state === "queued" && (
         <>
-          <RefreshCw className="h-3.5 w-3.5 animate-spin text-[var(--text-muted)]" />
-          <span>Queued</span>
+          <RefreshCw className="h-4 w-4 animate-spin text-[var(--text-muted)]" />
+          <span className={labelClass}>Queued</span>
         </>
       )}
       {state === "checking" && (
         <>
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--accent)]" />
-          <span className="relative">
-            Scanning…
-            <span className="inline-block w-1.5 h-1.5 ml-1 rounded-full bg-[var(--accent)] animate-ping" />
-          </span>
+          <Loader2 className="h-4 w-4 animate-spin text-[var(--accent)]" />
+          <span className={labelClass}>Scanning…</span>
         </>
       )}
       {state === "done" && (
         <>
-          <CheckCircle2 className="h-3.5 w-3.5 text-[var(--healthy)]" />
-          <span>Complete</span>
+          <CheckCircle2 className="h-4 w-4 text-[var(--healthy)]" />
+          <span className={labelClass}>Complete</span>
         </>
       )}
       {state === "failed" && (
         <>
-          <AlertTriangle className="h-3.5 w-3.5 text-[var(--critical)]" />
-          <span>Check failed</span>
+          <AlertTriangle className="h-4 w-4 text-[var(--critical)]" />
+          <span className={labelClass}>Check failed</span>
         </>
       )}
     </Button>

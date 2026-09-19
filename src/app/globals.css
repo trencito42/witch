@@ -1,36 +1,92 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
-  --bg: #070709;
-  --bg-elevated: #0d0d11;
-  --bg-card: #121217;
-  --bg-hover: #1a1a22;
-  --bg-active: #21212c;
+  /* Light theme (default) */
+  --bg: #F4EFE6;
+  --surface: #FBF8F2;
+  --surface-raised: #FFFFFF;
+  --bg-elevated: var(--surface);
+  --bg-card: var(--surface-raised);
+  --bg-hover: #ECE4D8;
+  --bg-active: #E4D9CA;
   --surface-0: var(--bg);
-  --surface-1: var(--bg-elevated);
-  --surface-2: var(--bg-card);
+  --surface-1: var(--surface);
+  --surface-2: var(--surface-raised);
   --surface-3: var(--bg-hover);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.15);
-  --border-focus: rgba(187, 242, 176, 0.4);
-  --text: #f4f4f2;
-  --text-muted: #93939e;
-  --text-faint: #5d5d6a;
-  --accent: #bbf2b0;
-  --accent-strong: #d4f8cc;
-  --accent-dim: rgba(187, 242, 176, 0.08);
-  --accent-glow: rgba(187, 242, 176, 0.22);
-  --accent-foreground: #081008;
-  --healthy: #34d399;
-  --healthy-dim: rgba(52, 211, 153, 0.12);
-  --warning: #fbbf24;
-  --warning-dim: rgba(251, 191, 36, 0.12);
-  --critical: #f87171;
-  --critical-dim: rgba(248, 113, 113, 0.14);
-  --info: #60a5fa;
-  --info-dim: rgba(96, 165, 250, 0.12);
-  --focus: #bbf2b0;
+  --border: #E2D9CD;
+  --border-strong: #C8BDAD;
+  --border-focus: #D9480F;
+  --text: #1A1418;
+  --text-muted: #5C5257;
+  --text-faint: #756B70;
+  --accent: #D9480F;
+  --accent-strong: #BF3E0B;
+  --accent-dim: rgba(217, 72, 15, 0.08);
+  --accent-foreground: #FFFFFF;
+  --plum: #2A1A33;
+  --plum-text: #F4EFE6;
+  --healthy: #2F7D4F;
+  --healthy-dim: rgba(47, 125, 79, 0.12);
+  --warning: #B7791F;
+  --warning-dim: rgba(183, 121, 31, 0.12);
+  --critical: #C2361B;
+  --critical-dim: rgba(194, 54, 27, 0.12);
+  --info: #2B6CB0;
+  --info-dim: rgba(43, 108, 176, 0.12);
+  --focus: #D9480F;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(26, 20, 24, 0.06);
+
+  /* Landing aliases for unified single source */
+  --landing-bg: var(--bg);
+  --landing-text: var(--text);
+  --landing-text-muted: var(--text-muted);
+  --landing-text-faint: var(--text-faint);
+  --landing-border: var(--border);
+  --landing-border-strong: var(--border-strong);
+  --landing-accent: var(--accent);
+  --landing-accent-hover: var(--accent-strong);
+  --landing-plum: var(--plum);
+  --landing-plum-text: var(--plum-text);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark theme via prefers-color-scheme */
+    --bg: #140F17;
+    --surface: #1D1622;
+    --surface-raised: #261D2C;
+    --bg-elevated: var(--surface);
+    --bg-card: var(--surface-raised);
+    --bg-hover: #2F2338;
+    --bg-active: #3B2D46;
+    --surface-0: var(--bg);
+    --surface-1: var(--surface);
+    --surface-2: var(--surface-raised);
+    --surface-3: var(--bg-hover);
+    --border: #2E2234;
+    --border-strong: #43324C;
+    --border-focus: #F26A2E;
+    --text: #EDE6DA;
+    --text-muted: #A79DA6;
+    --text-faint: #7E737D;
+    --accent: #F26A2E;
+    --accent-strong: #FF7E47;
+    --accent-dim: rgba(242, 106, 46, 0.14);
+    --accent-foreground: #140F17;
+    --plum: #2A1A33;
+    --plum-text: #EDE6DA;
+    --healthy: #5FBF85;
+    --healthy-dim: rgba(95, 191, 133, 0.15);
+    --warning: #E0A93B;
+    --warning-dim: rgba(224, 169, 59, 0.15);
+    --critical: #F0654A;
+    --critical-dim: rgba(240, 101, 74, 0.15);
+    --info: #63B3ED;
+    --info-dim: rgba(99, 179, 237, 0.15);
+    --focus: #F26A2E;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
 }
 
 @theme inline {
@@ -40,10 +96,10 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-border: var(--border);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: var(--font-sans-body), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: var(--font-serif), Georgia, Cambria, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
-
 
 @layer base {
   * {
@@ -60,20 +116,30 @@
   body {
     background-color: var(--bg);
     color: var(--text);
-    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--font-sans-body), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
     min-height: 100%;
     min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Form inputs 16px minimum to prevent iOS safari auto-zoom */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 
   ::selection {
     background: var(--accent-dim);
-    color: var(--accent-strong);
+    color: var(--accent);
   }
 
   :focus-visible {
-    outline: 1.5px solid var(--border-focus);
+    outline: 2px solid var(--border-focus);
     outline-offset: 2px;
   }
 }
@@ -159,69 +225,47 @@
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
 }
 
-.landing-atmosphere {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: min(1080px, 125vh);
-  pointer-events: none;
-  z-index: 0;
-  overflow: hidden;
+.landing-page {
+  background-color: var(--landing-bg);
+  color: var(--landing-text);
+  font-family: var(--font-sans-body), system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
 }
 
-.landing-atmosphere img {
-  object-fit: cover;
-  object-position: center top;
-  opacity: 0.9;
-  mix-blend-mode: screen;
-  filter: contrast(1.18) brightness(0.72) saturate(1.06);
+.landing-serif {
+  font-family: var(--font-serif), Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
-.landing-atmosphere-fade {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(
-      ellipse 58% 48% at 50% 26%,
-      rgba(7, 7, 9, 0.42) 0%,
-      rgba(7, 7, 9, 0.12) 46%,
-      transparent 72%
-    ),
-    linear-gradient(
-      to bottom,
-      transparent 0%,
-      transparent 42%,
-      rgba(7, 7, 9, 0.55) 72%,
-      var(--bg) 100%
-    );
+.landing-sans {
+  font-family: var(--font-sans-body), system-ui, -apple-system, sans-serif;
 }
 
-.landing-star {
-  position: absolute;
-  width: 3px;
-  height: 3px;
-  border-radius: 9999px;
-  background: rgba(187, 242, 176, 0.55);
-  pointer-events: none;
+.landing-body {
+  font-size: 18px;
+  line-height: 1.6;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .landing-star {
-    animation: landing-pulse 7s ease-in-out infinite;
-  }
+/* Dashboard design system utilities */
+.app-card {
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
-@keyframes landing-pulse {
-  0%,
-  100% {
-    opacity: 0.25;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.35);
-  }
+.app-surface {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.app-heading {
+  font-family: var(--font-serif), Georgia, Cambria, serif;
+}
+
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
 }
 
 /* Custom restrained scrollbars */

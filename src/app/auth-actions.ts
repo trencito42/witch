@@ -11,7 +11,11 @@ import { persistDefaultOrganization } from "@/server/tenancy";
 import { writeAudit } from "@/server/audit";
 import { clientIpFromHeaders } from "@/lib/client-ip";
 
-export type AuthState = { error?: string; message?: string };
+export type AuthState = {
+  error?: string;
+  message?: string;
+  unverifiedEmail?: string;
+};
 
 function formString(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -59,8 +63,10 @@ export async function actionSignIn(
   formData: FormData,
 ): Promise<AuthState> {
   const ip = await clientIp();
+  let parsedEmail = "";
   try {
-    const email = emailSchema.parse(formString(formData, "email")).toLowerCase();
+    parsedEmail = emailSchema.parse(formString(formData, "email")).toLowerCase();
+    const email = parsedEmail;
     const password = formString(formData, "password");
     await enforceRateLimit({ key: `login:ip:${ip}`, limit: 20, windowSeconds: 600 });
     await enforceRateLimit({ key: `login:email:${email}`, limit: 10, windowSeconds: 600 });
@@ -72,9 +78,45 @@ export async function actionSignIn(
     const session = await auth.api.getSession({ headers: await headers() });
     if (session?.user) await persistDefaultOrganization(session.user.id);
   } catch (error) {
+    const isUnverified =
+      (error instanceof APIError &&
+        (error.message?.toLowerCase().includes("verified") ||
+          (error as { body?: { code?: string } }).body?.code === "EMAIL_NOT_VERIFIED" ||
+          error.status === 403)) ||
+      (error instanceof Error && error.message.toLowerCase().includes("verified"));
+
+    if (isUnverified) {
+      return {
+        error: "Adresa de email nu a fost încă verificată.",
+        unverifiedEmail: parsedEmail,
+      };
+    }
+
     return authError(error);
   }
   redirect("/overview");
+}
+
+export async function actionResendVerification(emailRaw: string): Promise<AuthState> {
+  const ip = await clientIp();
+  try {
+    const email = emailSchema.parse(emailRaw).toLowerCase();
+    await enforceRateLimit({ key: `resend-verify:ip:${ip}`, limit: 5, windowSeconds: 600 });
+    await enforceRateLimit({ key: `resend-verify:email:${email}`, limit: 3, windowSeconds: 600 });
+    await auth.api.sendVerificationEmail({
+      body: {
+        email,
+        callbackURL: "/overview",
+      },
+      headers: await headers(),
+    });
+    return {
+      message: `Am trimis un nou link de verificare la ${email}. Te rugăm să verifici căsuța de email (inclusiv folderul Spam).`,
+      unverifiedEmail: email,
+    };
+  } catch (error) {
+    return authError(error);
+  }
 }
 
 export async function actionForgotPassword(

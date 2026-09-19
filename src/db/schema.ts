@@ -92,6 +92,13 @@ export const organizations = mysqlTable(
     statusPageEnabled: boolean("status_page_enabled").notNull().default(false),
     statusPageSlug: varchar("status_page_slug", { length: 80 }).unique(),
     statusPageHeadline: varchar("status_page_headline", { length: 160 }),
+    statusPageSubheadline: varchar("status_page_subheadline", { length: 255 }),
+    statusPageAllowSubscribe: boolean("status_page_allow_subscribe")
+      .notNull()
+      .default(true),
+    statusPageShowHistoryBars: boolean("status_page_show_history_bars")
+      .notNull()
+      .default(true),
     alertOnIncident: boolean("alert_on_incident").notNull().default(true),
     alertOnRecovery: boolean("alert_on_recovery").notNull().default(true),
     monthlyReportsEnabled: boolean("monthly_reports_enabled")
@@ -104,6 +111,22 @@ export const organizations = mysqlTable(
     updatedAt: datetimeRequired("updated_at"),
   },
   (table) => [index("org_status_slug_idx").on(table.statusPageSlug)],
+);
+
+export const statusPageSubscribers = mysqlTable(
+  "status_page_subscriber",
+  {
+    id: id().primaryKey(),
+    organizationId: id("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    email: varchar("email", { length: 255 }).notNull(),
+    createdAt: datetimeRequired("created_at"),
+  },
+  (table) => [
+    uniqueIndex("status_page_sub_org_email_unique").on(table.organizationId, table.email),
+    index("status_page_sub_org_idx").on(table.organizationId),
+  ],
 );
 
 export const organizationMembers = mysqlTable(
@@ -191,6 +214,17 @@ export const billingEvents = mysqlTable(
   (table) => [index("billing_org_idx").on(table.organizationId)],
 );
 
+export type VisualNoiseSettings = {
+  ignoreCookieConsent?: boolean;
+  ignoreChatWidgets?: boolean;
+  ignoreMarketingPopups?: boolean;
+  ignoreAds?: boolean;
+  ignoreStickyPromos?: boolean;
+  cleanCapture?: boolean;
+  autoDismissConsent?: boolean;
+  colorScheme?: "light" | "dark" | "default";
+};
+
 export const sites = mysqlTable(
   "site",
   {
@@ -207,6 +241,7 @@ export const sites = mysqlTable(
       .notNull()
       .default("MEDIUM"),
     ignoreSelectors: json("ignore_selectors"),
+    visualNoiseSettings: json("visual_noise_settings").$type<VisualNoiseSettings>(),
     pausedAt: datetimeOptional("paused_at"),
     lastCheckedAt: datetimeOptional("last_checked_at"),
     lastHealthyAt: datetimeOptional("last_healthy_at"),
@@ -628,6 +663,7 @@ export type Job = typeof jobs.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Report = typeof reports.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;
+export type StatusPageSubscriber = typeof statusPageSubscribers.$inferSelect;
 
 export const schema = {
   user: users,
@@ -641,6 +677,7 @@ export const schema = {
   organizations,
   organizationMembers,
   organizationInvitations,
+  statusPageSubscribers,
   subscriptions,
   billingEvents,
   sites,

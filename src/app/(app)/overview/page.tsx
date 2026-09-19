@@ -9,7 +9,6 @@ import {
   Button,
   EmptyState,
   MetricCard,
-  HealthBeacon,
 } from "@/components/ui";
 import { computeOrgHttpMetrics } from "@/features/reports/service";
 import { loadSiteListStats } from "@/features/sites/stats";
@@ -21,8 +20,28 @@ import {
   ShieldCheck,
   AlertTriangle,
   Clock,
-  Sparkles,
 } from "lucide-react";
+
+function formatRelativeTime(date: Date | string | number): string {
+  const target = typeof date === "object" ? date.getTime() : new Date(date).getTime();
+  if (isNaN(target)) return "—";
+  const diffSeconds = Math.round((target - Date.now()) / 1000);
+  const diffMinutes = Math.round(diffSeconds / 60);
+  const diffHours = Math.round(diffMinutes / 60);
+  const diffDays = Math.round(diffHours / 24);
+
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+  if (Math.abs(diffSeconds) < 60) {
+    return "just now";
+  } else if (Math.abs(diffMinutes) < 60) {
+    return rtf.format(diffMinutes, "minute");
+  } else if (Math.abs(diffHours) < 24) {
+    return rtf.format(diffHours, "hour");
+  } else {
+    return rtf.format(diffDays, "day");
+  }
+}
 
 export default async function OverviewPage() {
   const ctx = await requireOrgContext();
@@ -87,64 +106,98 @@ export default async function OverviewPage() {
     orgSites.map((site) => site.id),
   );
 
-  const overallStatus =
-    attention.length > 0
-      ? attention.some((s) => s.status === "DOWN")
-        ? "critical"
-        : "warning"
-      : staleSites.length > 0
-        ? "warning"
-        : "healthy";
+  // Status header config
+  let headerConfig: {
+    statusType: "healthy" | "critical" | "warning" | "neutral";
+    surfaceClass: string;
+    iconBoxClass: string;
+    icon: React.ReactNode;
+    title: string;
+    description: string;
+  };
+
+  if (orgSites.length === 0) {
+    headerConfig = {
+      statusType: "neutral",
+      surfaceClass: "border-[var(--border)] bg-[var(--surface-raised)]",
+      iconBoxClass: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]",
+      icon: <Globe className="h-6 w-6" aria-hidden="true" />,
+      title: "No websites under watch yet",
+      description: "Add your first site to start HTTP checks and automated visual diffing.",
+    };
+  } else if (attention.length > 0) {
+    headerConfig = {
+      statusType: "critical",
+      surfaceClass: "border-[var(--critical)]/25 bg-[var(--critical-dim)]/40",
+      iconBoxClass: "border-[var(--critical)]/30 bg-[var(--critical-dim)] text-[var(--critical)]",
+      icon: <AlertTriangle className="h-6 w-6" aria-hidden="true" />,
+      title: `${attention.length} ${attention.length === 1 ? "site needs" : "sites need"} attention`,
+      description: "Incidents or downtime detected across your monitored sites. Review them below.",
+    };
+  } else if (staleSites.length > 0) {
+    headerConfig = {
+      statusType: "warning",
+      surfaceClass: "border-[var(--warning)]/25 bg-[var(--warning-dim)]/40",
+      iconBoxClass: "border-[var(--warning)]/30 bg-[var(--warning-dim)] text-[var(--warning)]",
+      icon: <Clock className="h-6 w-6" aria-hidden="true" />,
+      title: "Monitoring looks delayed",
+      description: "Expected checks are overdue. Confirm the worker is running.",
+    };
+  } else {
+    headerConfig = {
+      statusType: "healthy",
+      surfaceClass: "border-[var(--healthy)]/25 bg-[var(--healthy-dim)]/30",
+      iconBoxClass: "border-[var(--healthy)]/30 bg-[var(--healthy-dim)] text-[var(--healthy)]",
+      icon: <ShieldCheck className="h-6 w-6" aria-hidden="true" />,
+      title: "All monitored sites are healthy",
+      description: `Witch completed ${Number(recentChecks?.value ?? 0)} checks in the last 5 minutes.`,
+    };
+  }
+
+  const integerFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+  const uptimeFormatter = new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  const latencyFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
   return (
-    <div className="space-y-10 animate-spectral-fade">
-      {/* OBSERVATORY HEALTH HERO */}
-      <div className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-b from-[var(--bg-elevated)] to-[var(--bg-card)] p-6 sm:p-8">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-radial from-[var(--accent-glow)]/20 to-transparent pointer-events-none -mr-20 -mt-20 blur-2xl" />
-
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <HealthBeacon status={overallStatus} size="lg" />
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] font-medium tracking-wider uppercase text-[var(--accent)] flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Workspace status
-                </span>
+    <div className="space-y-8">
+      {/* STATUS HEADER */}
+      <section
+        aria-label="Workspace Status"
+        className={`rounded-xl border p-5 sm:p-6 transition-colors ${headerConfig.surfaceClass}`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
+          <div className="min-w-0">
+            {/* Mobile: icon and headline on one row */}
+            <div className="flex items-center gap-3.5">
+              <div
+                className={`w-12 h-12 rounded-xl shrink-0 flex items-center justify-center border ${headerConfig.iconBoxClass}`}
+              >
+                {headerConfig.icon}
               </div>
-              <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-[var(--text)]">
-                {orgSites.length === 0
-                  ? "Nothing under watch yet"
-                  : attention.length === 0
-                    ? staleSites.length
-                      ? "Monitoring looks delayed."
-                      : "Everything is quiet."
-                    : `${attention.length} ${attention.length === 1 ? "site requires" : "sites require"} attention.`}
+              <h1 className="font-serif text-xl sm:text-2xl font-normal tracking-tight text-[var(--text)] truncate">
+                {headerConfig.title}
               </h1>
-              <p className="text-[14px] text-[var(--text-muted)] max-w-xl leading-relaxed">
-                {orgSites.length === 0
-                  ? "Add a site to start HTTP checks. Visual diffs unlock on Freelancer."
-                  : attention.length === 0
-                    ? staleSites.length
-                      ? "Expected checks are overdue. Confirm the worker is running."
-                      : `Witch completed ${Number(recentChecks?.value ?? 0)} checks in the last 5 minutes.`
-                    : `Incidents on monitored sites. Review them below.`}
-              </p>
             </div>
+            {/* Sentence below */}
+            <p className="mt-2 text-[14px] text-[var(--text-muted)] leading-relaxed">
+              {headerConfig.description}
+            </p>
           </div>
 
-          <div className="flex w-full sm:w-auto items-stretch sm:items-center gap-3 shrink-0 self-stretch md:self-center [&_a]:w-full [&_button]:w-full sm:[&_button]:w-auto">
-            <Link href="/sites">
+          {/* Add site button: full width below on mobile, right of header from 640px */}
+          <div className="w-full sm:w-auto shrink-0">
+            <Link href="/sites" className="block sm:inline-block w-full sm:w-auto">
               <Button
                 variant="primary"
                 leadingIcon={<Plus className="h-4 w-4" />}
+                className="w-full sm:w-auto justify-center min-h-[44px]"
               >
                 Add site
               </Button>
             </Link>
           </div>
         </div>
-      </div>
+      </section>
 
       {orgSites.length === 0 ? (
         <EmptyState
@@ -160,43 +213,57 @@ export default async function OverviewPage() {
         />
       ) : (
         <>
-          {/* OBSERVATORY METRICS GRID */}
+          {/* STAT CARDS */}
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
             <MetricCard
-              label="Sites Monitored"
-              value={orgSites.length}
-              secondary={`${healthy} operational`}
-              indicator="neutral"
-            />
-            <MetricCard
-              label="Healthy sites"
-              value={healthy}
-              indicator="healthy"
-              secondary={`${orgSites.length ? Math.round((healthy / orgSites.length) * 100) : 0}% of workspace`}
-            />
-            <MetricCard
-              label="Sites needing attention"
-              value={attention.length}
-              indicator={attention.length > 0 ? "critical" : "neutral"}
+              label="Sites monitored"
+              value={integerFormatter.format(orgSites.length)}
               secondary={
-                attention.length > 0 ? (
-                  <span className="text-[var(--critical)]">down or degraded</span>
-                ) : (
-                  <span className="text-[var(--text-muted)]">none</span>
-                )
+                healthy === 0
+                  ? "None operational yet"
+                  : `${integerFormatter.format(healthy)} operational`
               }
             />
             <MetricCard
-              label="Workspace 30d HTTP uptime"
-              value={`${uptime.toFixed(2)}%`}
-              indicator="healthy"
-              secondary={avgLatency ? `${avgLatency}ms avg` : undefined}
+              label="Healthy sites"
+              value={integerFormatter.format(healthy)}
+              secondary={`${orgSites.length ? integerFormatter.format(Math.round((healthy / orgSites.length) * 100)) : 0}% of your sites`}
             />
             <MetricCard
-              label="Incidents (Month)"
-              value={String(incidentCount?.value ?? 0)}
-              indicator="neutral"
-              secondary={`${recoveries.length} recovered`}
+              label="Sites needing attention"
+              value={
+                attention.length > 0 ? (
+                  <span className="text-[var(--critical)]">
+                    {integerFormatter.format(attention.length)}
+                  </span>
+                ) : (
+                  integerFormatter.format(attention.length)
+                )
+              }
+              secondary={
+                attention.length > 0
+                  ? `${integerFormatter.format(attention.length)} down or degraded`
+                  : "All sites operational"
+              }
+            />
+            <MetricCard
+              label="Workspace 30d uptime"
+              value={`${uptimeFormatter.format(uptime)}%`}
+              secondary={
+                avgLatency
+                  ? `Average latency ${latencyFormatter.format(Math.round(avgLatency))} ms`
+                  : "No latency data yet"
+              }
+            />
+            <MetricCard
+              className="col-span-2 sm:col-span-2 xl:col-span-1"
+              label="Incidents this month"
+              value={integerFormatter.format(Number(incidentCount?.value ?? 0))}
+              secondary={
+                recoveries.length > 0
+                  ? `${integerFormatter.format(recoveries.length)} recovered`
+                  : "No recoveries this month"
+              }
             />
           </div>
 
@@ -204,7 +271,7 @@ export default async function OverviewPage() {
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-[17px] font-medium tracking-tight text-[var(--text)]">
+                <h2 className="font-serif text-lg sm:text-xl font-normal tracking-tight text-[var(--text)]">
                   Sites Under Watch
                 </h2>
                 <p className="text-[13px] text-[var(--text-muted)]">
@@ -213,22 +280,31 @@ export default async function OverviewPage() {
               </div>
               <Link
                 href="/sites"
-                className="text-[13px] text-[var(--text-muted)] hover:text-[var(--accent)] flex items-center gap-1 transition-colors"
+                className="inline-flex items-center gap-1 min-h-[44px] text-[13px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus)] rounded-md px-1"
               >
                 <span>View all</span>
-                <ArrowUpRight className="h-3.5 w-3.5" />
+                <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>
 
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
               {orgSites.map((site) => {
                 const last = lastBySite.get(site.id);
                 const openIncidents = openBySite.get(site.id) ?? 0;
+                const checkDate = last?.createdAt ?? site.lastCheckedAt;
+                const relTime = checkDate ? formatRelativeTime(checkDate) : "Never checked";
+                const absTime = checkDate
+                  ? new Date(checkDate).toLocaleString("en-US", {
+                      dateStyle: "medium",
+                      timeStyle: "medium",
+                    })
+                  : undefined;
+
                 return (
                   <Link
                     key={site.id}
                     href={`/sites/${site.id}`}
-                    className="group relative flex flex-col justify-between p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-strong)] transition-all duration-200 shadow-xs"
+                    className="group flex flex-col justify-between p-4 sm:p-5 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus)] focus-visible:outline-offset-2 [@media(pointer:fine)]:hover:bg-[var(--bg-hover)] [@media(pointer:fine)]:hover:border-[var(--border-strong)]"
                   >
                     <div>
                       <div className="flex items-start justify-between gap-3 mb-3">
@@ -238,18 +314,24 @@ export default async function OverviewPage() {
                             <img
                               src={site.faviconUrl}
                               alt=""
-                              width={18}
-                              height={18}
+                              width={20}
+                              height={20}
                               className="rounded-xs shrink-0"
                             />
                           ) : (
-                            <Globe className="h-4 w-4 text-[var(--text-muted)] shrink-0" />
+                            <Globe
+                              className="h-5 w-5 text-[var(--text-muted)] shrink-0"
+                              aria-hidden="true"
+                            />
                           )}
                           <div className="min-w-0">
-                            <h3 className="text-[14px] font-medium text-[var(--text)] group-hover:text-white truncate transition-colors">
+                            <h3 className="text-[14px] font-medium text-[var(--text)] truncate">
                               {site.name}
                             </h3>
-                            <p className="mono text-[11px] text-[var(--text-muted)] truncate">
+                            <p
+                              className="font-mono text-[12px] text-[var(--text-muted)] truncate"
+                              title={site.url}
+                            >
                               {site.url}
                             </p>
                           </div>
@@ -259,27 +341,20 @@ export default async function OverviewPage() {
                     </div>
 
                     <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between text-[12px] text-[var(--text-muted)]">
-                      <div className="flex items-center gap-1.5 mono">
-                        <Clock className="h-3.5 w-3.5 text-[var(--text-faint)]" />
-                        <span>
-                          {(last?.createdAt ?? site.lastCheckedAt)
-                            ? new Date(last?.createdAt ?? site.lastCheckedAt!).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                            : "—"}
-                        </span>
+                      <div className="flex items-center gap-1.5 font-mono">
+                        <Clock className="h-3.5 w-3.5 text-[var(--text-faint)]" aria-hidden="true" />
+                        <span title={absTime}>{relTime}</span>
                         {last?.durationMs != null && (
-                          <span>· {last.durationMs}ms</span>
+                          <span>· {Math.round(last.durationMs)} ms</span>
                         )}
                       </div>
 
-                      {openIncidents ? (
-                        <span className="text-[var(--critical)] text-[11px] font-medium">
-                          {openIncidents} open
+                      {openIncidents > 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--critical-dim)] text-[var(--critical)] border border-[var(--critical)]/20">
+                          {openIncidents} {openIncidents === 1 ? "incident" : "incidents"}
                         </span>
                       ) : (
-                        <span className="text-[var(--healthy)] text-[11px]">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--healthy-dim)] text-[var(--healthy)] border border-[var(--healthy)]/20">
                           Stable
                         </span>
                       )}
@@ -287,100 +362,164 @@ export default async function OverviewPage() {
                   </Link>
                 );
               })}
+
+              {orgSites.length <= 3 && (
+                <Link
+                  href="/sites"
+                  className="group flex flex-col items-center justify-center p-5 rounded-xl border border-dashed border-[var(--border-strong)] bg-transparent min-h-[140px] text-center transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus)] focus-visible:outline-offset-2 [@media(pointer:fine)]:hover:bg-[var(--surface)] [@media(pointer:fine)]:hover:border-[var(--accent)]"
+                >
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] group-hover:text-[var(--accent)] group-hover:border-[var(--accent)]/30 transition-colors mb-2">
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                  </div>
+                  <span className="text-[13px] font-medium text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
+                    Add another site
+                  </span>
+                  <span className="text-[12px] text-[var(--text-muted)] mt-0.5">
+                    Watch HTTP, browser & visual diffs
+                  </span>
+                </Link>
+              )}
             </div>
           </section>
 
           {/* ACTIVITY & INCIDENT LOG */}
-          <div className="grid lg:grid-cols-2 gap-8 pt-4">
-            {/* Recent Incidents */}
-            <section className="space-y-4">
+          <div className="grid lg:grid-cols-12 gap-8 pt-2">
+            {/* Recent Incidents (60% on desktop) */}
+            <section className="lg:col-span-7 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-[15px] font-medium text-[var(--text)] flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-[var(--warning)]" />
+                <h2 className="font-serif text-lg font-normal tracking-tight text-[var(--text)] flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-[var(--warning)]" aria-hidden="true" />
                   Recent Incidents
                 </h2>
                 <Link
                   href="/incidents"
-                  className="text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+                  className="inline-flex items-center gap-1 min-h-[44px] text-[13px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus)] rounded-md px-1"
                 >
-                  View all
+                  <span>View all</span>
+                  <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </div>
 
               {recentIncidents.length === 0 ? (
-                <div className="p-6 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]/50 text-center text-[13px] text-[var(--text-muted)]">
-                  <ShieldCheck className="h-6 w-6 text-[var(--healthy)] mx-auto mb-2 opacity-80" />
+                <div className="p-6 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] text-center text-[13px] text-[var(--text-muted)]">
+                  <ShieldCheck className="h-6 w-6 text-[var(--healthy)] mx-auto mb-2 opacity-80" aria-hidden="true" />
                   No incidents recorded. Witch is quietly watching.
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {recentIncidents.map((incident) => (
-                    <Link
-                      key={incident.id}
-                      href={`/incidents/${incident.id}`}
-                      className="flex items-center justify-between p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] hover:bg-[var(--bg-hover)] transition-colors gap-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-medium text-[var(--text)] truncate">
-                          {incident.title}
+                <div className="space-y-2.5">
+                  {recentIncidents.map((incident) => {
+                    const siteName =
+                      orgSites.find((s) => s.id === incident.siteId)?.name ?? "Monitored Site";
+                    const incidentRelTime = formatRelativeTime(incident.lastDetectedAt);
+                    const incidentAbsTime = new Date(incident.lastDetectedAt).toLocaleString("en-US", {
+                      dateStyle: "medium",
+                      timeStyle: "medium",
+                    });
+
+                    return (
+                      <Link
+                        key={incident.id}
+                        href={`/incidents/${incident.id}`}
+                        className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] min-h-[64px] gap-3 transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus)] focus-visible:outline-offset-2 [@media(pointer:fine)]:hover:bg-[var(--bg-hover)] [@media(pointer:fine)]:hover:border-[var(--border-strong)]"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="text-[13px] font-medium text-[var(--text)] truncate">
+                              {incident.title}
+                            </span>
+                            <span className="text-[12px] text-[var(--text-muted)] shrink-0">·</span>
+                            <span className="text-[12px] font-medium text-[var(--text-muted)] truncate">
+                              {siteName}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-[var(--text-muted)] flex items-center gap-2 mt-1">
+                            <span
+                              title={incidentAbsTime}
+                              className="font-mono text-[var(--text-muted)]"
+                            >
+                              {incidentRelTime}
+                            </span>
+                            <span>·</span>
+                            <span className="font-mono uppercase tracking-wider text-[var(--text-faint)]">
+                              {incident.category}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-[11px] text-[var(--text-muted)] flex items-center gap-2 mt-0.5">
-                          <span>
-                            {new Date(incident.lastDetectedAt).toLocaleDateString()}{" "}
-                            {new Date(incident.lastDetectedAt).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                          <span>·</span>
-                          <span className="capitalize text-[var(--text-faint)]">
-                            {incident.category}
-                          </span>
-                        </div>
-                      </div>
-                      <StatusBadge status={incident.status} />
-                    </Link>
-                  ))}
+                        <StatusBadge status={incident.status} />
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </section>
 
-            {/* Recoveries & Health timeline */}
-            <section className="space-y-4">
-              <h2 className="text-[15px] font-medium text-[var(--text)] flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-[var(--healthy)]" />
-                Recent Recoveries
-              </h2>
+            {/* Recent Recoveries (40% on desktop) */}
+            <section className="lg:col-span-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-serif text-lg font-normal tracking-tight text-[var(--text)] flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-[var(--healthy)]" aria-hidden="true" />
+                  Recent Recoveries
+                </h2>
+                <Link
+                  href="/incidents"
+                  className="inline-flex items-center gap-1 min-h-[44px] text-[13px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus)] rounded-md px-1"
+                >
+                  <span>View all</span>
+                  <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </div>
 
               {recoveries.length === 0 ? (
-                <div className="p-6 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]/50 text-center text-[13px] text-[var(--text-muted)]">
-                  No recoveries in recent history.
+                <div className="p-5 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] text-[13px] text-[var(--text-muted)] leading-relaxed">
+                  No recoveries yet. Resolved incidents will show up here.
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {recoveries.map((incident) => (
-                    <Link
-                      key={incident.id}
-                      href={`/incidents/${incident.id}`}
-                      className="flex items-center justify-between p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] hover:bg-[var(--bg-hover)] transition-colors gap-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-medium text-[var(--text)] truncate">
-                          {incident.title}
+                <div className="space-y-2.5">
+                  {recoveries.map((incident) => {
+                    const siteName =
+                      orgSites.find((s) => s.id === incident.siteId)?.name ?? "Monitored Site";
+                    const recoveryRelTime = formatRelativeTime(
+                      incident.resolvedAt ?? incident.lastDetectedAt,
+                    );
+                    const recoveryAbsTime = new Date(
+                      incident.resolvedAt ?? incident.lastDetectedAt,
+                    ).toLocaleString("en-US", {
+                      dateStyle: "medium",
+                      timeStyle: "medium",
+                    });
+
+                    return (
+                      <Link
+                        key={incident.id}
+                        href={`/incidents/${incident.id}`}
+                        className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] min-h-[64px] gap-3 transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus)] focus-visible:outline-offset-2 [@media(pointer:fine)]:hover:bg-[var(--bg-hover)] [@media(pointer:fine)]:hover:border-[var(--border-strong)]"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="text-[13px] font-medium text-[var(--text)] truncate">
+                              {incident.title}
+                            </span>
+                            <span className="text-[12px] text-[var(--text-muted)] shrink-0">·</span>
+                            <span className="text-[12px] font-medium text-[var(--text-muted)] truncate">
+                              {siteName}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-[var(--healthy)] flex items-center gap-1.5 mt-1">
+                            <StatusDot status="RESOLVED" size="sm" />
+                            <span>Recovered</span>
+                            <span className="text-[var(--text-faint)]">·</span>
+                            <span
+                              title={recoveryAbsTime}
+                              className="font-mono text-[var(--text-muted)]"
+                            >
+                              {recoveryRelTime}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-[11px] text-[var(--healthy)] flex items-center gap-1 mt-0.5">
-                          <StatusDot status="RESOLVED" size="sm" />
-                          <span>Recovered to baseline</span>
-                        </div>
-                      </div>
-                      <span className="text-[11px] mono text-[var(--text-muted)] shrink-0">
-                        {new Date(incident.lastDetectedAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </Link>
-                  ))}
+                        <StatusBadge status="RESOLVED" />
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </section>

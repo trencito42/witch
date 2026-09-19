@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import {
   actionForgotPassword,
   actionResetPassword,
+  actionResendVerification,
   actionSignIn,
   actionSignUp,
   type AuthState,
@@ -30,6 +31,21 @@ export function AuthForm({
           ? actionForgotPassword
           : actionResetPassword;
   const [state, formAction, pending] = useActionState(action, initial);
+  const [resending, setResending] = useState(false);
+  const [resendStatus, setResendStatus] = useState<{ message?: string; error?: string } | null>(null);
+
+  const handleResend = async (email: string) => {
+    setResending(true);
+    setResendStatus(null);
+    try {
+      const res = await actionResendVerification(email);
+      setResendStatus(res);
+    } catch {
+      setResendStatus({ error: "Nu am putut retrimite emailul. Te rugăm să încerci din nou." });
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
     <div className="relative min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-12 sm:py-16 overflow-hidden">
@@ -130,16 +146,43 @@ export function AuthForm({
             )}
 
             {state.error ? (
-              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-[var(--critical)]/10 border border-[var(--critical)]/25 text-[var(--critical)] text-[12px] leading-relaxed">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{state.error}</span>
+              <div className="p-3.5 rounded-xl bg-[var(--surface-0)] border border-[var(--critical)]/30 text-[12px] space-y-2.5">
+                <div className="flex items-start gap-2.5 text-[var(--critical)] leading-relaxed">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{state.error}</span>
+                </div>
+
+                {state.unverifiedEmail && (
+                  <div className="pt-2.5 border-t border-[var(--border)] flex flex-col gap-1.5">
+                    <p className="text-[12px] text-[var(--text-muted)] leading-relaxed">
+                      Nu ai primit emailul de confirmare sau a expirat link-ul?
+                    </p>
+                    <div>
+                      <button
+                        type="button"
+                        disabled={resending}
+                        onClick={() => handleResend(state.unverifiedEmail!)}
+                        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--accent)] hover:underline disabled:opacity-50 min-h-[36px]"
+                      >
+                        {resending ? "Se trimite…" : "Retrimite emailul de verificare →"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : null}
 
-            {state.message ? (
+            {resendStatus?.error ? (
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-[var(--critical)]/10 border border-[var(--critical)]/25 text-[var(--critical)] text-[12px] leading-relaxed">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{resendStatus.error}</span>
+              </div>
+            ) : null}
+
+            {resendStatus?.message || state.message ? (
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-[var(--healthy)]/10 border border-[var(--healthy)]/25 text-[var(--healthy)] text-[12px] leading-relaxed">
                 <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{state.message}</span>
+                <span>{resendStatus?.message ?? state.message}</span>
               </div>
             ) : null}
 

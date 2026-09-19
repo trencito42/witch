@@ -8,6 +8,7 @@ import {
   monitors,
   visualDiffs,
   visualSnapshots,
+  type VisualNoiseSettings,
 } from "@/db/schema";
 import { requireOrgContext } from "@/server/tenancy";
 import { getSiteForOrg } from "@/features/sites/service";
@@ -25,6 +26,8 @@ import {
 } from "@/components/ui";
 import { RunCheckButton } from "@/components/run-check-button";
 import { CompareSlider } from "@/components/compare-slider";
+import { SiteMonitorRow } from "@/components/site-monitor-row";
+import { AddAssertionForm } from "@/components/add-assertion-form";
 import {
   actionAcceptBaseline,
   actionAddElementMonitor,
@@ -47,18 +50,56 @@ import {
   Eye,
   Sliders,
   Sparkles,
+  Laptop,
+  Smartphone,
+  AlertTriangle,
 } from "lucide-react";
+
+function LatencySparkline({ values }: { values: number[] }) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const width = 80;
+  const height = 22;
+  const points = values
+    .map((v, i) => {
+      const x = (i / (values.length - 1)) * (width - 6) + 3;
+      const y = height - ((v - min) / range) * (height - 6) - 3;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+
+  return (
+    <div className="flex items-center gap-2 mt-2" title={`Recent latency range: ${min}ms - ${max}ms`}>
+      <svg width={width} height={height} className="overflow-visible">
+        <polyline
+          points={points}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <span className="text-[11px] text-[var(--text-faint)] tabular-nums">
+        {values[values.length - 1]}ms
+      </span>
+    </div>
+  );
+}
 
 export default async function SitePage({
   params,
   searchParams,
 }: {
   params: Promise<{ siteId: string }>;
-  searchParams: Promise<{ tab?: string; onboarding?: string }>;
+  searchParams: Promise<{ tab?: string; onboarding?: string; viewport?: string }>;
 }) {
   const ctx = await requireOrgContext();
   const { siteId } = await params;
-  const { tab = "overview", onboarding } = await searchParams;
+  const { tab = "overview", onboarding, viewport: activeViewportParam } = await searchParams;
+  const activeViewport = activeViewportParam === "mobile" ? "mobile" : "desktop";
   const site = await getSiteForOrg(ctx.organizationId, siteId);
   if (!site) notFound();
 
@@ -94,6 +135,7 @@ export default async function SitePage({
     )
     .orderBy(desc(visualSnapshots.createdAt))
     .limit(1);
+
   const [currentDesktop] = await db
     .select()
     .from(visualSnapshots)
@@ -106,6 +148,21 @@ export default async function SitePage({
     )
     .orderBy(desc(visualSnapshots.createdAt))
     .limit(1);
+
+  const [baselineMobile] = await db
+    .select()
+    .from(visualSnapshots)
+    .where(
+      and(
+        eq(visualSnapshots.siteId, site.id),
+        eq(visualSnapshots.organizationId, ctx.organizationId),
+        eq(visualSnapshots.viewport, "mobile"),
+        eq(visualSnapshots.isBaseline, true),
+      ),
+    )
+    .orderBy(desc(visualSnapshots.createdAt))
+    .limit(1);
+
   const [currentMobile] = await db
     .select()
     .from(visualSnapshots)
@@ -118,23 +175,55 @@ export default async function SitePage({
     )
     .orderBy(desc(visualSnapshots.createdAt))
     .limit(1);
-  const [latestDiff] = await db
-    .select({ diff: visualDiffs })
-    .from(visualDiffs)
-    .innerJoin(visualSnapshots, eq(visualSnapshots.id, visualDiffs.currentSnapshotId))
-    .where(
-      and(
-        eq(visualDiffs.siteId, site.id),
-        eq(visualDiffs.organizationId, ctx.organizationId),
-        eq(visualSnapshots.viewport, "desktop"),
-      ),
-    )
-    .orderBy(desc(visualDiffs.createdAt))
-    .limit(1);
+
+  const [latestDesktopDiffRow] = currentDesktop
+    ? await db
+        .select()
+        .from(visualDiffs)
+        .where(
+          and(
+            eq(visualDiffs.siteId, site.id),
+            eq(visualDiffs.organizationId, ctx.organizationId),
+            eq(visualDiffs.currentSnapshotId, currentDesktop.id),
+          ),
+        )
+        .orderBy(desc(visualDiffs.createdAt))
+        .limit(1)
+    : [];
+  const latestDesktopDiff = latestDesktopDiffRow ?? null;
+
+  const [latestMobileDiffRow] = currentMobile
+    ? await db
+        .select()
+        .from(visualDiffs)
+        .where(
+          and(
+            eq(visualDiffs.siteId, site.id),
+            eq(visualDiffs.organizationId, ctx.organizationId),
+            eq(visualDiffs.currentSnapshotId, currentMobile.id),
+          ),
+        )
+        .orderBy(desc(visualDiffs.createdAt))
+        .limit(1)
+    : [];
+  const latestMobileDiff = latestMobileDiffRow ?? null;
+
+  const activeBaseline = activeViewport === "desktop" ? baselineDesktop : baselineMobile;
+  const activeCurrent = activeViewport === "desktop" ? currentDesktop : currentMobile;
+  const activeDiff = activeViewport === "desktop" ? latestDesktopDiff : latestMobileDiff;
+
+  const dimensionMismatch = Boolean(
+    activeBaseline &&
+      activeCurrent &&
+      (activeBaseline.viewport !== activeCurrent.viewport ||
+        activeBaseline.width !== activeCurrent.width ||
+        activeBaseline.height !== activeCurrent.height),
+  );
+
+  const noiseSettings = (site.visualNoiseSettings as VisualNoiseSettings) ?? {};
 
   const thirty = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const metrics = await computeSiteMetrics(ctx.organizationId, site.id, thirty, new Date());
-  const latestDesktopDiff = latestDiff?.diff;
 
   const openIncidentsCount = siteIncidents.filter((item) =>
     ["OPEN", "ACKNOWLEDGED"].includes(item.status),
@@ -149,30 +238,34 @@ export default async function SitePage({
     { id: "settings", label: "Settings", icon: <SettingsIcon className="h-3.5 w-3.5" />, href: `/sites/${site.id}?tab=settings` },
   ];
 
+  const recentLatencies = checks
+    .filter((c) => c.durationMs !== null && (c.durationMs as number) > 0)
+    .slice(0, 10)
+    .map((c) => c.durationMs as number)
+    .reverse();
+
   return (
-    <div className="space-y-8 animate-spectral-fade">
-      {/* SITE HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b border-[var(--border)]">
-        <div className="space-y-1.5 min-w-0">
-          <div className="flex items-start gap-3 min-w-0">
+    <div className="space-y-8">
+      {/* SITE HEADER (Sticky & compact on mobile) */}
+      <div className="sticky top-14 md:top-0 z-20 bg-[var(--surface)]/95 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-4 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             {site.faviconUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={site.faviconUrl}
                 alt=""
-                width={22}
-                height={22}
-                className="rounded-xs shrink-0 mt-1"
+                width={24}
+                height={24}
+                className="rounded-md shrink-0"
               />
             ) : (
-              <Globe className="h-5 w-5 text-[var(--text-muted)] shrink-0 mt-1" />
+              <Globe className="h-5 w-5 text-[var(--text-muted)] shrink-0" />
             )}
-            <div className="min-w-0 space-y-1.5">
-              <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-[var(--text)] break-words">
-                {site.name}
-              </h1>
-              <StatusBadge status={site.status} />
-            </div>
+            <h1 className="text-xl sm:text-2xl font-medium tracking-tight text-[var(--text)] truncate app-heading">
+              {site.name}
+            </h1>
+            <StatusBadge status={site.status} />
           </div>
 
           <div className="flex items-center gap-2 min-w-0">
@@ -180,7 +273,8 @@ export default async function SitePage({
               href={site.url}
               target="_blank"
               rel="noreferrer"
-              className="mono text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)] flex items-center gap-1.5 transition-colors min-w-0 max-w-full"
+              title={site.url}
+              className="font-mono text-[13px] text-[var(--text-muted)] hover:text-[var(--accent)] flex items-center gap-1.5 transition-colors min-w-0 max-w-full"
             >
               <span className="truncate">{site.url}</span>
               <ExternalLink className="h-3 w-3 shrink-0" />
@@ -188,29 +282,31 @@ export default async function SitePage({
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row w-full sm:w-auto items-stretch sm:items-center gap-2.5 shrink-0 no-print [&_button]:w-full sm:[&_button]:w-auto">
-          <RunCheckButton siteId={site.id} />
+        <div className="flex items-center gap-2.5 shrink-0 no-print self-end sm:self-auto">
+          <RunCheckButton siteId={site.id} compactOnMobile />
 
-          <form action={actionPauseSite.bind(null, site.id, !site.pausedAt)} className="w-full sm:w-auto">
+          <form action={actionPauseSite.bind(null, site.id, !site.pausedAt)} className="w-auto">
             <Button
               type="submit"
               variant="secondary"
-              leadingIcon={
-                site.pausedAt ? (
-                  <Play className="h-3.5 w-3.5 text-[var(--healthy)]" />
-                ) : (
-                  <Pause className="h-3.5 w-3.5 text-[var(--warning)]" />
-                )
-              }
+              aria-label={site.pausedAt ? "Resume watch" : "Pause"}
+              className="touch-target"
             >
-              {site.pausedAt ? "Resume watch" : "Pause"}
+              {site.pausedAt ? (
+                <Play className="h-4 w-4 text-[var(--healthy)]" />
+              ) : (
+                <Pause className="h-4 w-4 text-[var(--warning)]" />
+              )}
+              <span className="hidden sm:inline">
+                {site.pausedAt ? "Resume watch" : "Pause"}
+              </span>
             </Button>
           </form>
         </div>
       </div>
 
       {onboarding && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border border-[rgba(187,242,176,0.3)] bg-[var(--accent-dim)] text-[13px] text-[var(--accent-strong)]">
+        <div className="flex items-center gap-3 p-4 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent-dim)] text-[13px] text-[var(--text)]">
           <Sparkles className="h-4 w-4 shrink-0 text-[var(--accent)]" />
           <span>
             {ctx.plan.browserMonitoring
@@ -220,43 +316,92 @@ export default async function SitePage({
         </div>
       )}
 
-      {/* HEALTH METRICS OVERVIEW */}
+      {/* HEALTH METRICS OVERVIEW (2x2 on mobile, 4 in a row from 768px) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
-          label="30d Uptime"
+          label="HTTP Uptime (30d)"
           value={`${metrics.uptime.toFixed(2)}%`}
           indicator="healthy"
-          secondary={`${metrics.checks} checks`}
+          secondary={`${metrics.checks} synthetic pings`}
         />
         <MetricCard
           label="Avg Latency"
           value={Math.round(metrics.averageResponseMs) ? `${Math.round(metrics.averageResponseMs)} ms` : "—"}
           indicator="neutral"
-          secondary="Synthetic HTTP"
+          secondary="Origin server latency"
+          extra={<LatencySparkline values={recentLatencies} />}
         />
         <MetricCard
-          label="Last Healthy Check"
+          label="Browser Validation"
           value={
             site.lastHealthyAt
-              ? new Date(site.lastHealthyAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "—"
+              ? "Healthy"
+              : "Pending"
           }
           indicator={site.lastHealthyAt ? "healthy" : "neutral"}
-          secondary={site.lastHealthyAt ? new Date(site.lastHealthyAt).toLocaleDateString() : undefined}
+          secondary={
+            site.lastHealthyAt
+              ? `Checked ${new Date(site.lastHealthyAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+              : ctx.plan.browserMonitoring
+                ? "Chromium DOM & visual check"
+                : "HTTP synthetic only"
+          }
         />
         <MetricCard
           label="Active Incidents"
           value={openIncidentsCount}
           indicator={openIncidentsCount > 0 ? "critical" : "neutral"}
-          secondary={openIncidentsCount > 0 ? "Investigation required" : "Clean state"}
+          secondary={openIncidentsCount > 0 ? "Visual or script failure" : "All monitors nominal"}
         />
       </div>
 
-      {/* TAB NAVIGATION */}
-      <Tabs items={tabItems} activeId={tab} />
+      {/* MOBILE / TABLET RIGHT RAIL (Stacks under stats below 1024px) */}
+      <div className="lg:hidden">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm space-y-2">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
+                Live Status
+              </span>
+              <StatusBadge status={site.status} />
+            </div>
+            <div className="text-[12px] space-y-1 text-[var(--text-muted)]">
+              <div className="flex justify-between">
+                <span>Desktop (1440px):</span>
+                <span className="text-[var(--text)] font-medium">
+                  {baselineDesktop ? `${baselineDesktop.width}×${baselineDesktop.height}` : "Pending baseline"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Mobile (390px):</span>
+                <span className="text-[var(--text)] font-medium">
+                  {baselineMobile ? `${baselineMobile.width}×${baselineMobile.height}` : "Pending baseline"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm space-y-2">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
+                Active Incidents
+              </span>
+              <span className="text-[12px] font-semibold text-[var(--text)]">{openIncidentsCount}</span>
+            </div>
+            <p className="text-[12px] text-[var(--text-muted)]">
+              {openIncidentsCount > 0
+                ? "One or more monitors detected an issue."
+                : "All checks nominal. Zero regressions recorded."}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* TWO-COLUMN LAYOUT (At 1024px and up: Main tabs + 320px Right Rail) */}
+      <div className="grid gap-8 lg:grid-cols-[1fr_320px] lg:items-start">
+        {/* MAIN TABS & MONITORS COLUMN */}
+        <div className="min-w-0 space-y-6">
+          <Tabs items={tabItems} activeId={tab} />
 
       {/* TAB 1: OVERVIEW */}
       {tab === "overview" && (
@@ -353,67 +498,164 @@ export default async function SitePage({
       {/* TAB 2: VISUAL */}
       {tab === "visual" && (
         <div className="space-y-6">
-          {baselineDesktop && currentDesktop ? (
+          {/* VIEWPORT SELECTOR: DESKTOP vs MOBILE */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]">
+            <div>
+              <h3 className="text-[14px] font-medium text-[var(--text)]">
+                Visual Baseline Comparison
+              </h3>
+              <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
+                Interactive split-view between accepted baseline and latest captured frame.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1.5 p-1 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] self-start sm:self-auto">
+              <Link
+                href={`/sites/${site.id}?tab=visual&viewport=desktop`}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[12px] font-medium transition-colors ${
+                  activeViewport === "desktop"
+                    ? "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-xs"
+                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                <Laptop className="h-3.5 w-3.5" />
+                <span>Desktop (1440px)</span>
+              </Link>
+              <Link
+                href={`/sites/${site.id}?tab=visual&viewport=mobile`}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[12px] font-medium transition-colors ${
+                  activeViewport === "mobile"
+                    ? "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-xs"
+                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                <Smartphone className="h-3.5 w-3.5" />
+                <span>Mobile (390px)</span>
+              </Link>
+            </div>
+          </div>
+
+          {activeBaseline && activeCurrent ? (
             <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]">
-                <div>
-                  <h3 className="text-[14px] font-medium text-[var(--text)]">
-                    Visual Baseline Comparison
-                  </h3>
-                  <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
-                    Interactive split-view between accepted baseline and latest captured Chromium frame.
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0 w-full sm:w-auto [&_button]:w-full sm:[&_button]:w-auto">
-                  {latestDesktopDiff && (
-                    <span className="px-2.5 py-1 rounded-md text-[12px] mono bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text)]">
-                      {(Number(latestDesktopDiff.differenceRatio) * 100).toFixed(2)}% pixel diff
-                      {latestDesktopDiff.aboveThreshold ? (
-                        <span className="ml-1 text-[var(--warning)] font-bold">· Above threshold</span>
-                      ) : (
-                        <span className="ml-1 text-[var(--healthy)]">· Nominal</span>
-                      )}
-                    </span>
-                  )}
-                  <form action={actionAcceptBaseline.bind(null, currentDesktop.id, site.id)}>
+              {/* VIEWPORT DIMENSION INTEGRITY CHECK */}
+              {dimensionMismatch ? (
+                <div className="p-4 rounded-xl border border-[var(--warning)]/30 bg-[var(--warning-dim)] text-[13px] space-y-3">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="h-4 w-4 text-[var(--warning)] shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-[var(--text)]">
+                        Baseline viewport differs from the current capture
+                      </h4>
+                      <p className="text-[12px] text-[var(--text-muted)] mt-1 leading-relaxed">
+                        The baseline was recorded under a different resolution or configuration. Split comparison is suspended to avoid false visual scaling.
+                      </p>
+                      <div className="mt-2 text-[12px] font-mono flex items-center gap-4 text-[var(--text)]">
+                        <span>Baseline: {activeBaseline.width} × {activeBaseline.height} ({activeBaseline.viewport})</span>
+                        <span>Current: {activeCurrent.width} × {activeCurrent.height} ({activeCurrent.viewport})</span>
+                      </div>
+                    </div>
+                  </div>
+                  <form action={actionAcceptBaseline.bind(null, activeCurrent.id, site.id)}>
                     <Button variant="primary" size="sm">
-                      Accept current as baseline
+                      Set current as new baseline
                     </Button>
                   </form>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/60 text-[12px]">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {activeDiff ? (
+                        <span className="mono text-[var(--text)]">
+                          {(Number(activeDiff.differenceRatio) * 100).toFixed(2)}% pixel diff
+                          {activeDiff.aboveThreshold ? (
+                            <span className="ml-1 text-[var(--warning)] font-bold">· Above threshold</span>
+                          ) : (
+                            <span className="ml-1 text-[var(--healthy)] font-medium">· Nominal</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--text-muted)]">No diff recorded</span>
+                      )}
+                    </div>
 
-              <CompareSlider
-                beforeSrc={`/api/media/snapshot/${baselineDesktop.id}`}
-                afterSrc={`/api/media/snapshot/${currentDesktop.id}`}
-              />
+                    <form action={actionAcceptBaseline.bind(null, activeCurrent.id, site.id)}>
+                      <Button variant="primary" size="sm" className="w-full sm:w-auto">
+                        Accept current as baseline
+                      </Button>
+                    </form>
+                  </div>
 
-              {latestDesktopDiff?.diffStorageKey && (
-                <div className="space-y-3 pt-4 border-t border-[var(--border)]">
-                  <h4 className="text-[13px] font-medium text-[var(--text-muted)]">
-                    Differential Heatmap (Pixel Diff)
-                  </h4>
-                  <div className="rounded-xl border border-[var(--border)] bg-black overflow-hidden max-w-2xl">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`/api/media/diff/${latestDesktopDiff.id}`}
-                      alt="Visual diff heatmap"
-                      className="w-full h-auto"
+                  {/* COMPARATOR */}
+                  <div
+                    className={
+                      activeViewport === "mobile"
+                        ? "max-w-[400px] mx-auto w-full transition-all"
+                        : "w-full"
+                    }
+                  >
+                    <CompareSlider
+                      beforeSrc={`/api/media/snapshot/${activeBaseline.id}`}
+                      afterSrc={`/api/media/snapshot/${activeCurrent.id}`}
                     />
                   </div>
-                </div>
+
+                  {/* METADATA BAR BELOW COMPARATOR */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12px]">
+                    <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] space-y-1">
+                      <div className="text-[11px] uppercase tracking-wider text-[var(--accent)] font-medium">
+                        Baseline ({activeBaseline.viewport})
+                      </div>
+                      <div className="text-[var(--text)] font-medium">
+                        {activeBaseline.width} × {activeBaseline.height} px
+                      </div>
+                      <div className="text-[11px] text-[var(--text-muted)]">
+                        Accepted {new Date(activeBaseline.createdAt).toLocaleDateString()} {new Date(activeBaseline.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] space-y-1">
+                      <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] font-medium">
+                        Current ({activeCurrent.viewport})
+                      </div>
+                      <div className="text-[var(--text)] font-medium">
+                        {activeCurrent.width} × {activeCurrent.height} px
+                      </div>
+                      <div className="text-[11px] text-[var(--text-muted)]">
+                        Captured {new Date(activeCurrent.createdAt).toLocaleDateString()} {new Date(activeCurrent.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* HEATMAP */}
+                  {activeDiff?.diffStorageKey && (
+                    <div className="space-y-3 pt-4 border-t border-[var(--border)]">
+                      <h4 className="text-[13px] font-medium text-[var(--text-muted)]">
+                        Differential Heatmap (Pixel Diff · {activeViewport})
+                      </h4>
+                      <div className="rounded-xl border border-[var(--border)] bg-black overflow-hidden max-w-2xl">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`/api/media/diff/${activeDiff.id}`}
+                          alt={`Visual diff heatmap ${activeViewport}`}
+                          className="w-full h-auto"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ) : (
             <EmptyState
               title={
                 ctx.plan.browserMonitoring
-                  ? "Visual baselines pending"
+                  ? `Visual ${activeViewport} baseline pending`
                   : "Visual monitoring is not on Free"
               }
               description={
                 ctx.plan.browserMonitoring
-                  ? "Visual regression baselines appear automatically after the first successful Chromium browser check completes."
+                  ? `Visual regression baselines for ${activeViewport} appear automatically after the first successful Chromium browser check completes.`
                   : "Free runs HTTP and TLS checks only. Upgrade to Freelancer or above to capture desktop and mobile Chromium snapshots."
               }
               action={
@@ -432,112 +674,30 @@ export default async function SitePage({
 
       {/* TAB 3: MONITORING */}
       {tab === "monitoring" && (
-        <div className="space-y-8 max-w-3xl">
+        <div className="space-y-8">
           <div className="space-y-4">
-            <h2 className="text-[15px] font-medium text-[var(--text)]">
+            <h2 className="text-[16px] font-semibold text-[var(--text)]">
               Active Monitors
             </h2>
 
             <div className="space-y-3">
               {siteMonitors.map((monitor) => (
-                <form
+                <SiteMonitorRow
                   key={monitor.id}
+                  monitor={monitor}
+                  intervalOptions={INTERVAL_OPTIONS}
                   action={actionUpdateMonitor.bind(null, monitor.id)}
-                  className="p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[14px] font-medium text-[var(--text)]">
-                        {monitor.name}
-                      </span>
-                      <span className="text-[11px] mono uppercase px-1.5 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-muted)]">
-                        {monitor.type}
-                      </span>
-                    </div>
-                    <div className="text-[12px] text-[var(--text-muted)] mono">
-                      Last: {monitor.lastRunAt ? new Date(monitor.lastRunAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Never"} · Next: {new Date(monitor.nextRunAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <label className="flex items-center gap-2 text-[12px] text-[var(--text-muted)] cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="enabled"
-                        defaultChecked={monitor.enabled}
-                        className="accent-[var(--accent)]"
-                      />
-                      <span>Active</span>
-                    </label>
-
-                    <div className="w-full sm:w-32 min-w-0">
-                      <Select
-                        name="interval"
-                        defaultValue={
-                          INTERVAL_OPTIONS.find((item) => item.seconds === monitor.intervalSeconds)?.key ?? "30m"
-                        }
-                      >
-                        {INTERVAL_OPTIONS.map((item) => (
-                          <option key={item.key} value={item.key}>
-                            {item.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-
-                    <Button type="submit" variant="secondary" size="sm">
-                      Save
-                    </Button>
-                  </div>
-                </form>
+                />
               ))}
             </div>
           </div>
 
           {/* ADD ELEMENT MONITOR */}
-          <div className="p-6 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] space-y-4">
-            <div>
-              <h3 className="text-[14px] font-medium text-[var(--text)]">
-                Add DOM Element Assertion
-              </h3>
-              <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
-                {ctx.plan.browserMonitoring
-                  ? "Ensure crucial interactive elements (e.g. checkout buttons, forms, nav links) remain rendered and clickable."
-                  : "Element monitors run inside Chromium and are available on Freelancer and above."}
-              </p>
-            </div>
-
-            {ctx.plan.browserMonitoring ? (
-              <form action={actionAddElementMonitor.bind(null, site.id)} className="space-y-4">
-                <div>
-                  <Label htmlFor="selector">CSS Selector</Label>
-                  <Input
-                    id="selector"
-                    name="selector"
-                    placeholder="button.checkout, #submit-order"
-                    className="mono"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="expectedText">Expected Text (optional)</Label>
-                  <Input
-                    id="expectedText"
-                    name="expectedText"
-                    placeholder="Checkout, Order Now"
-                  />
-                </div>
-
-                <Button type="submit" variant="secondary">
-                  Add element check
-                </Button>
-              </form>
-            ) : (
-              <Button type="button" variant="secondary" disabled>
-                Requires Freelancer
-              </Button>
-            )}
-          </div>
+          <AddAssertionForm
+            siteId={site.id}
+            action={actionAddElementMonitor.bind(null, site.id)}
+            enabled={Boolean(ctx.plan.browserMonitoring)}
+          />
         </div>
       )}
 
@@ -644,31 +804,134 @@ export default async function SitePage({
       {/* TAB 6: SETTINGS */}
       {tab === "settings" && (
         <div className="space-y-8 max-w-xl">
-          <form action={actionUpdateSite.bind(null, site.id)} className="space-y-5">
-            <div>
-              <Label htmlFor="site-name">Site Name</Label>
-              <Input id="site-name" name="name" defaultValue={site.name} required />
+          <form action={actionUpdateSite.bind(null, site.id)} className="space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-[14px] font-medium text-[var(--text)]">Site Details</h3>
+              <div>
+                <Label htmlFor="site-name">Site Name</Label>
+                <Input id="site-name" name="name" defaultValue={site.name} required />
+              </div>
+
+              <div>
+                <Label htmlFor="sensitivity">Visual Diff Sensitivity</Label>
+                <Select
+                  id="sensitivity"
+                  name="visualSensitivity"
+                  defaultValue={site.visualSensitivity}
+                >
+                  <option value="LOW">Low (tolerates minor font and pixel shifts)</option>
+                  <option value="MEDIUM">Medium (recommended default)</option>
+                  <option value="HIGH">High (alerts on subtle styling changes)</option>
+                </Select>
+              </div>
+
+              <SwitchRow
+                title="Show on public status page"
+                description="Make this website and its operational health visible on your organization's public status portal."
+                name="statusPageVisible"
+                defaultChecked={site.statusPageVisible}
+              />
             </div>
 
-            <div>
-              <Label htmlFor="sensitivity">Visual Diff Sensitivity</Label>
-              <Select
-                id="sensitivity"
-                name="visualSensitivity"
-                defaultValue={site.visualSensitivity}
-              >
-                <option value="LOW">Low (tolerates minor font and pixel shifts)</option>
-                <option value="MEDIUM">Medium (recommended default)</option>
-                <option value="HIGH">High (alerts on subtle styling changes)</option>
-              </Select>
+            {/* VISUAL CAPTURE SETTINGS */}
+            <div className="pt-6 border-t border-[var(--border)] space-y-4">
+              <div>
+                <h3 className="text-[14px] font-medium text-[var(--text)]">Visual Capture</h3>
+                <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
+                  Configure browser emulation characteristics for screenshot baselines.
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="colorScheme">Emulated Color Scheme</Label>
+                <Select
+                  id="colorScheme"
+                  name="colorScheme"
+                  defaultValue={noiseSettings.colorScheme ?? "light"}
+                >
+                  <option value="light">Light (default)</option>
+                  <option value="dark">Dark</option>
+                  <option value="default">System / Page Default</option>
+                </Select>
+              </div>
             </div>
 
-            <SwitchRow
-              title="Show on public status page"
-              description="Make this website and its operational health visible on your organization's public status portal."
-              name="statusPageVisible"
-              defaultChecked={site.statusPageVisible}
-            />
+            {/* VISUAL NOISE SETTINGS */}
+            <div className="pt-6 border-t border-[var(--border)] space-y-4">
+              <div>
+                <h3 className="text-[14px] font-medium text-[var(--text)]">Visual Noise</h3>
+                <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
+                  Exclude dynamic overlays and widgets from triggering visual regression incidents.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <SwitchRow
+                  title="Ignore cookie consent banners"
+                  description="Dynamic CMP banners (OneTrust, Cookiebot, etc.) won't trigger visual incidents."
+                  name="ignoreCookieConsent"
+                  defaultChecked={noiseSettings.ignoreCookieConsent !== false}
+                />
+
+                <SwitchRow
+                  title="Ignore chat widgets"
+                  description="Floating support widgets (Intercom, Crisp, Drift, etc.) are excluded from pixel comparison."
+                  name="ignoreChatWidgets"
+                  defaultChecked={noiseSettings.ignoreChatWidgets !== false}
+                />
+
+                <SwitchRow
+                  title="Ignore marketing popups"
+                  description="Newsletter and promotional overlays are excluded when confidently detected."
+                  name="ignoreMarketingPopups"
+                  defaultChecked={noiseSettings.ignoreMarketingPopups === true}
+                />
+
+                <SwitchRow
+                  title="Ignore ad containers"
+                  description="Dynamic ad slots and banners are excluded from visual difference calculations."
+                  name="ignoreAds"
+                  defaultChecked={noiseSettings.ignoreAds === true}
+                />
+
+                <SwitchRow
+                  title="Ignore sticky promotional banners"
+                  description="Fixed top and bottom announcement bars are excluded from comparison."
+                  name="ignoreStickyPromos"
+                  defaultChecked={noiseSettings.ignoreStickyPromos === true}
+                />
+
+                <SwitchRow
+                  title="Clean capture mode"
+                  description="Hide selected nuisance overlays before screenshots instead of only excluding them from visual comparison. This changes the captured presentation but does not change the live website."
+                  name="cleanCapture"
+                  defaultChecked={noiseSettings.cleanCapture === true}
+                />
+
+                <SwitchRow
+                  title="Auto-dismiss consent dialogs"
+                  description="Attempt to automatically click Reject or Essential Only on detected cookie banners before capture."
+                  name="autoDismissConsent"
+                  defaultChecked={noiseSettings.autoDismissConsent === true}
+                />
+              </div>
+
+              {/* ADVANCED: CUSTOM SELECTORS */}
+              <div className="pt-3">
+                <Label htmlFor="ignoreSelectors">Custom Ignore Selectors</Label>
+                <textarea
+                  id="ignoreSelectors"
+                  name="ignoreSelectors"
+                  rows={3}
+                  defaultValue={Array.isArray(site.ignoreSelectors) ? (site.ignoreSelectors as string[]).join("\n") : ""}
+                  placeholder={`.intercom-lightweight-app\n#newsletter-popup\n.promo-ticker`}
+                  className="w-full mt-1.5 p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] text-[12px] font-mono text-[var(--text)] focus:outline-hidden focus:ring-2 focus:ring-[var(--accent)]"
+                />
+                <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                  One CSS selector per line. Matching regions are excluded from visual difference calculations.
+                </p>
+              </div>
+            </div>
 
             <div className="p-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] text-[12px] text-[var(--text-muted)] leading-relaxed">
               Target URL modifications are restricted after creation to ensure rigorous SSRF safety controls. To monitor a different domain, add a new service.
@@ -691,6 +954,102 @@ export default async function SitePage({
           </div>
         </div>
       )}
+        </div>
+
+        {/* DESKTOP RIGHT RAIL (320px on screens >= 1024px) */}
+        <aside className="hidden lg:block w-[320px] shrink-0 space-y-4">
+          {/* Live Health & Baseline Status Card */}
+          <div className="p-5 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
+                Live Status
+              </span>
+              <StatusBadge status={site.status} />
+            </div>
+
+            <div className="space-y-3 text-[13px]">
+              <div>
+                <span className="text-[11px] text-[var(--text-faint)] uppercase tracking-wider block">
+                  Monitored Target
+                </span>
+                <a
+                  href={site.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={site.url}
+                  className="font-mono text-[12px] text-[var(--text)] hover:text-[var(--accent)] truncate block mt-0.5"
+                >
+                  {site.url}
+                </a>
+              </div>
+
+              <div className="pt-2 border-t border-[var(--border)] space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] text-[var(--text-muted)]">Desktop (1440px)</span>
+                  <span className="text-[12px] font-medium text-[var(--text)]">
+                    {baselineDesktop ? `${baselineDesktop.width}×${baselineDesktop.height}` : "Pending baseline"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] text-[var(--text-muted)]">Mobile (390px)</span>
+                  <span className="text-[12px] font-medium text-[var(--text)]">
+                    {baselineMobile ? `${baselineMobile.width}×${baselineMobile.height}` : "Pending baseline"}
+                  </span>
+                </div>
+              </div>
+
+              {site.lastCheckedAt && (
+                <div className="pt-2 border-t border-[var(--border)] flex justify-between text-[12px]">
+                  <span className="text-[var(--text-muted)]">Last Verified</span>
+                  <span className="text-[var(--text)] tabular-nums" title={new Date(site.lastCheckedAt).toLocaleString()}>
+                    {new Date(site.lastCheckedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Incident Summary Card */}
+          <div className="p-5 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm space-y-3">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
+                Incident Summary
+              </span>
+              <span className="text-[12px] tabular-nums font-semibold text-[var(--text)]">
+                {openIncidentsCount} active
+              </span>
+            </div>
+
+            {siteIncidents.length > 0 ? (
+              <div className="space-y-2">
+                {siteIncidents.slice(0, 2).map((inc) => (
+                  <Link
+                    key={inc.id}
+                    href={`/incidents/${inc.id}`}
+                    className="block p-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] transition-colors text-[12px]"
+                  >
+                    <div className="font-medium text-[var(--text)] truncate">{inc.title}</div>
+                    <div className="flex items-center justify-between mt-1 text-[11px] text-[var(--text-muted)]">
+                      <span>{new Date(inc.firstDetectedAt).toLocaleDateString()}</span>
+                      <span className="capitalize">{inc.severity}</span>
+                    </div>
+                  </Link>
+                ))}
+                <Link
+                  href={`/sites/${site.id}?tab=incidents`}
+                  className="block text-center text-[12px] text-[var(--accent)] hover:underline pt-1 font-medium"
+                >
+                  View incidents tab →
+                </Link>
+              </div>
+            ) : (
+              <p className="text-[13px] text-[var(--text-muted)] leading-relaxed">
+                All synthetic and visual checks are nominal. Zero regressions recorded.
+              </p>
+            )}
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
