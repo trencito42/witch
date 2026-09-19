@@ -113,6 +113,34 @@ export default async function StatusPage({
     .from(sites)
     .where(and(eq(sites.organizationId, org.id), eq(sites.statusPageVisible, true)));
 
+  const visibleIds = orgSites.map((site) => site.id);
+  const publicHttpMonitors = visibleIds.length
+    ? await db
+        .select({
+          siteId: monitors.siteId,
+          intervalSeconds: monitors.intervalSeconds,
+        })
+        .from(monitors)
+        .where(
+          and(
+            inArray(monitors.siteId, visibleIds),
+            eq(monitors.organizationId, org.id),
+            eq(monitors.type, "HTTP"),
+            eq(monitors.enabled, true),
+          ),
+        )
+    : [];
+
+  const now = new Date();
+  const isTelemetryStale = (site: typeof sites.$inferSelect) => {
+    if (!site.lastCheckedAt) return true;
+    const monitor = publicHttpMonitors.find((row) => row.siteId === site.id);
+    const intervalSeconds = monitor?.intervalSeconds ?? 30 * 60;
+    const staleAfterMs = Math.max(15 * 60 * 1000, intervalSeconds * 3 * 1000);
+    return now.getTime() - site.lastCheckedAt.getTime() > staleAfterMs;
+  };
+  const staleSites = orgSites.filter(isTelemetryStale);
+
   const hasDown = orgSites.some((site) => site.status === "DOWN");
   const hasDegraded = orgSites.some((site) => site.status === "DEGRADED");
   const liveSites = orgSites.filter((site) => !["PAUSED", "UNKNOWN"].includes(site.status));
@@ -125,6 +153,7 @@ export default async function StatusPage({
     orgSites.some((site) => site.status === "UNKNOWN");
 
   const noPublicSites = orgSites.length === 0;
+  const monitoringDelayed = staleSites.length > 0 && !hasDown && !hasDegraded;
 
   const overallStatus = noPublicSites
     ? "neutral"
@@ -132,11 +161,13 @@ export default async function StatusPage({
       ? "critical"
       : hasDegraded
         ? "warning"
-        : allPaused
-          ? "neutral"
-          : unknownOnly
-            ? "warning"
-            : "healthy";
+        : monitoringDelayed
+          ? "warning"
+          : allPaused
+            ? "neutral"
+            : unknownOnly
+              ? "warning"
+              : "healthy";
 
   const overallLabel = noPublicSites
     ? "No Public Services"
@@ -144,14 +175,13 @@ export default async function StatusPage({
       ? "Major Service Disruption"
       : hasDegraded
         ? "Active Service Degradation"
-        : allPaused
-          ? "Monitoring Paused"
-          : unknownOnly
-            ? "Status Unknown"
-            : "All Systems Operational";
-
-  const visibleIds = orgSites.map((site) => site.id);
-  const now = new Date();
+        : monitoringDelayed
+          ? "Monitoring Delayed"
+          : allPaused
+            ? "Monitoring Paused"
+            : unknownOnly
+              ? "Status Unknown"
+              : "All Systems Operational";
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
   const pastIncidents = visibleIds.length
@@ -307,7 +337,10 @@ export default async function StatusPage({
               </div>
             ) : (
               orgSites.map((site) => {
-                const siteStatus =
+                const telemetryStale = isTelemetryStale(site);
+                const siteStatus = telemetryStale
+                  ? "warning"
+                  :
                   site.status === "DOWN"
                     ? "critical"
                     : site.status === "DEGRADED"
@@ -318,8 +351,9 @@ export default async function StatusPage({
                           ? "warning"
                           : "healthy";
 
-                const badgeLabel =
-                  site.status === "DOWN"
+                const badgeLabel = telemetryStale
+                  ? "Check delayed"
+                  : site.status === "DOWN"
                     ? "Outage"
                     : site.status === "DEGRADED"
                       ? "Degraded"
