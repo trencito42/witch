@@ -71,3 +71,41 @@ export function monthlyReportEmail(input: { title: string; reportUrl: string }) 
   return `<p ${p}>${escapeHtml(input.title)} is ready.</p>
 <p ${p}><a ${a} href="${escapeHtml(input.reportUrl)}">Open report</a></p>`;
 }
+
+
+export function statusSubscriptionConfirmationEmail(input: {
+  organizationName: string;
+  confirmUrl: string;
+}) {
+  return `<p ${p}>Confirm your subscription to status updates from <strong style="color:#ececec;">${escapeHtml(input.organizationName)}</strong>.</p>
+<p ${p}><a ${a} href="${escapeHtml(input.confirmUrl)}">Confirm status updates</a></p>
+<p ${p}>If you did not request this, you can ignore this message.</p>`;
+}
+
+export function statusIncidentSubscriberEmail(input: {
+  organizationName: string;
+  siteName: string;
+  title: string;
+  summary: string;
+  statusUrl: string;
+  unsubscribeUrl: string;
+}) {
+  return `<p ${p}><strong style="color:#ececec;">${escapeHtml(input.organizationName)}</strong> reported an incident.</p>
+<p ${p}><strong style="color:#ececec;">${escapeHtml(input.siteName)}</strong> · ${escapeHtml(input.title)}</p>
+<p ${p}>${escapeHtml(input.summary)}</p>
+<p ${p}><a ${a} href="${escapeHtml(input.statusUrl)}">View public status</a></p>
+<p ${p} style="font-size:12px;color:#71717a;"><a ${a} href="${escapeHtml(input.unsubscribeUrl)}">Unsubscribe from these updates</a></p>`;
+}
+
+export function statusRecoverySubscriberEmail(input: {
+  organizationName: string;
+  siteName: string;
+  title: string;
+  statusUrl: string;
+  unsubscribeUrl: string;
+}) {
+  return `<p ${p}><strong style="color:#ececec;">${escapeHtml(input.organizationName)}</strong> reported a recovery.</p>
+<p ${p}>${escapeHtml(input.siteName)} recovered from “${escapeHtml(input.title)}”.</p>
+<p ${p}><a ${a} href="${escapeHtml(input.statusUrl)}">View public status</a></p>
+<p ${p} style="font-size:12px;color:#71717a;"><a ${a} href="${escapeHtml(input.unsubscribeUrl)}">Unsubscribe from these updates</a></p>`;
+}
