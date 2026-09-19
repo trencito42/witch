@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   aiUsages,
@@ -8,16 +8,17 @@ import {
   incidents,
   organizations,
   sites,
+  statusPageSubscribers,
 } from "@/db/schema";
 import { analyzeIncidentSafe } from "@/ai/provider";
 import { newId } from "@/lib/ids";
 import { appUrl } from "@/lib/env";
 import { canUseAiAnalysis, canUseEmailAlerts, getEffectivePlan } from "@/lib/plans";
 import { subscriptions } from "@/db/schema";
-import { sendIncidentAlertEmail, sendRecoveryAlertEmail } from "@/emails/send";
+import { sendIncidentAlertEmail, sendRecoveryAlertEmail, sendStatusIncidentSubscriberEmail, sendStatusRecoverySubscriberEmail } from "@/emails/send";
 import { emailEnabled } from "@/lib/env";
 import { isValidDiscordWebhookUrl, sendDiscordWebhook } from "@/lib/discord";
-import { logger } from "@/lib/logger";
+import { logger } from "@/lib/logger";\nimport { getEnv } from "@/lib/env";\nimport { statusSubscriptionToken } from "@/lib/crypto";
 
 const SEVERITY_RANK: Record<string, number> = {
   INFO: 0,
@@ -239,5 +240,64 @@ export async function processEmailAlert(incidentId: string, organizationId: stri
       }
     }
   }
+
+  if (
+    emailEnabled() &&
+    org.statusPageEnabled &&
+    org.statusPageAllowSubscribe &&
+    org.statusPageSlug
+  ) {
+    const subscribers = await db
+      .select()
+      .from(statusPageSubscribers)
+      .where(
+        and(
+          eq(statusPageSubscribers.organizationId, organizationId),
+          sql`${statusPageSubscribers.confirmedAt} IS NOT NULL`,
+        ),
+      );
+
+    const statusUrl = `${appUrl()}/status/${org.statusPageSlug}`;
+    for (const subscriber of subscribers) {
+      const unsubscribeToken = statusSubscriptionToken({
+        subscriberId: subscriber.id,
+        organizationId,
+        email: subscriber.email,
+        purpose: "unsubscribe",
+        secret: getEnv().AUTH_SECRET,
+      });
+      const unsubscribeUrl =
+        `${appUrl()}/status/subscribe/unsubscribe?id=${encodeURIComponent(subscriber.id)}&token=${encodeURIComponent(unsubscribeToken)}`;
+
+      try {
+        if (kind === "resolved") {
+          await sendStatusRecoverySubscriberEmail({
+            to: subscriber.email,
+            organizationName: org.name,
+            siteName: site?.name ?? "Site",
+            title: incident.title,
+            statusUrl,
+            unsubscribeUrl,
+          });
+        } else {
+          await sendStatusIncidentSubscriberEmail({
+            to: subscriber.email,
+            organizationName: org.name,
+            siteName: site?.name ?? "Site",
+            title: incident.title,
+            summary: incident.summary,
+            statusUrl,
+            unsubscribeUrl,
+          });
+        }
+      } catch (error) {
+        logger.warn(
+          { err: error, subscriberId: subscriber.id, incidentId, kind },
+          "public status subscriber delivery failed",
+        );
+      }
+    }
+  }
+
   if (emailError) throw emailError;
 }
