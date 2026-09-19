@@ -121,6 +121,7 @@ export const statusPageSubscribers = mysqlTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     email: varchar("email", { length: 255 }).notNull(),
+    confirmedAt: datetimeOptional("confirmed_at"),
     createdAt: datetimeRequired("created_at"),
   },
   (table) => [
