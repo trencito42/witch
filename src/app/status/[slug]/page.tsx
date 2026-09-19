@@ -122,25 +122,31 @@ export default async function StatusPage({
     liveSites.length === 0 &&
     orgSites.some((site) => site.status === "UNKNOWN");
 
-  const overallStatus = hasDown
-    ? "critical"
-    : hasDegraded
-      ? "warning"
-      : allPaused
-        ? "neutral"
-        : unknownOnly
-          ? "warning"
-          : "healthy";
+  const noPublicSites = orgSites.length === 0;
 
-  const overallLabel = hasDown
-    ? "Major Service Disruption"
-    : hasDegraded
-      ? "Active Service Degradation"
-      : allPaused
-        ? "Monitoring Paused"
-        : unknownOnly
-          ? "Status Unknown"
-          : "All Systems Operational";
+  const overallStatus = noPublicSites
+    ? "neutral"
+    : hasDown
+      ? "critical"
+      : hasDegraded
+        ? "warning"
+        : allPaused
+          ? "neutral"
+          : unknownOnly
+            ? "warning"
+            : "healthy";
+
+  const overallLabel = noPublicSites
+    ? "No Public Services"
+    : hasDown
+      ? "Major Service Disruption"
+      : hasDegraded
+        ? "Active Service Degradation"
+        : allPaused
+          ? "Monitoring Paused"
+          : unknownOnly
+            ? "Status Unknown"
+            : "All Systems Operational";
 
   const visibleIds = orgSites.map((site) => site.id);
   const now = new Date();
@@ -159,7 +165,7 @@ export default async function StatusPage({
           ),
         )
         .orderBy(desc(incidents.firstDetectedAt))
-        .limit(50)
+        .limit(500)
     : [];
 
   const dailyHttpChecks = visibleIds.length
@@ -234,7 +240,9 @@ export default async function StatusPage({
                 ? "bg-[var(--healthy)]"
                 : overallStatus === "warning"
                   ? "bg-[var(--warning)]"
-                  : "bg-[var(--critical)]"
+                  : overallStatus === "critical"
+                    ? "bg-[var(--critical)]"
+                    : "bg-[var(--text-faint)]"
             }`}
           />
 
@@ -253,7 +261,7 @@ export default async function StatusPage({
 
               <p className="mt-2 text-[14px] text-[var(--text-muted)] max-w-xl leading-relaxed">
                 {org.statusPageSubheadline ||
-                  "Automated real-time monitoring and incident transparency across all production services."}
+                  "Automated website monitoring and incident transparency for the services published here."}
               </p>
             </div>
 
@@ -282,7 +290,7 @@ export default async function StatusPage({
               Services &amp; Endpoints
             </h2>
             <span className="text-[12px] font-mono text-[var(--text-faint)]">
-              Real-time status
+              Monitored status
             </span>
           </div>
 
@@ -382,7 +390,7 @@ export default async function StatusPage({
             </div>
           ) : (
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] divide-y divide-[var(--border)] overflow-hidden shadow-xs">
-              {pastIncidents.map((incident) => {
+              {pastIncidents.slice(0, 50).map((incident) => {
                 const isResolved = incident.status === "RESOLVED";
                 const isCritical = incident.severity === "CRITICAL" || incident.severity === "HIGH";
 
