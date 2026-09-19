@@ -10,6 +10,7 @@ import {
   EmptyState,
   MetricCard,
 } from "@/components/ui";
+import { AddSiteButton, AddSiteCardButton } from "@/components/add-site-dialog";
 import { computeOrgHttpMetrics } from "@/features/reports/service";
 import { loadSiteListStats } from "@/features/sites/stats";
 import { isMonitoringStale } from "@/lib/monitor-freshness";
@@ -186,15 +187,10 @@ export default async function OverviewPage() {
 
           {/* Add site button: full width below on mobile, right of header from 640px */}
           <div className="w-full sm:w-auto shrink-0">
-            <Link href="/sites" className="block sm:inline-block w-full sm:w-auto">
-              <Button
-                variant="primary"
-                leadingIcon={<Plus className="h-4 w-4" />}
-                className="w-full sm:w-auto justify-center min-h-[44px]"
-              >
-                Add site
-              </Button>
-            </Link>
+            <AddSiteButton
+              browserMonitoring={ctx.plan.browserMonitoring}
+              className="w-full sm:w-auto justify-center min-h-[44px]"
+            />
           </div>
         </div>
       </section>
@@ -364,20 +360,7 @@ export default async function OverviewPage() {
               })}
 
               {orgSites.length <= 3 && (
-                <Link
-                  href="/sites"
-                  className="group flex flex-col items-center justify-center p-5 rounded-xl border border-dashed border-[var(--border-strong)] bg-transparent min-h-[140px] text-center transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus)] focus-visible:outline-offset-2 [@media(pointer:fine)]:hover:bg-[var(--surface)] [@media(pointer:fine)]:hover:border-[var(--accent)]"
-                >
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] group-hover:text-[var(--accent)] group-hover:border-[var(--accent)]/30 transition-colors mb-2">
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                  </div>
-                  <span className="text-[13px] font-medium text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
-                    Add another site
-                  </span>
-                  <span className="text-[12px] text-[var(--text-muted)] mt-0.5">
-                    Watch HTTP, browser & visual diffs
-                  </span>
-                </Link>
+                <AddSiteCardButton browserMonitoring={ctx.plan.browserMonitoring} />
               )}
             </div>
           </section>
