@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { Check, CircleAlert, Eye, Globe2, ShieldCheck, Sparkles } from "lucide-react";
 import { fontSans, fontSerif } from "@/app/fonts";
 import { Wordmark } from "@/components/logo";
 
@@ -7,22 +7,22 @@ const signals = [
   {
     label: "Rendered UI",
     title: "Missing buttons and forms",
-    body: "Witch compares the page visitors actually receive, so a green HTTP response cannot hide a missing checkout, signup, or booking control.",
+    body: "A green response cannot hide a checkout, login, booking form, or CTA that vanished after deploy.",
   },
   {
     label: "Viewport",
     title: "Mobile-only breakage",
-    body: "Desktop and 390px mobile checks keep separate baselines, catching overflow, hidden navigation, and responsive layouts that quietly collapse.",
+    body: "Desktop and mobile renders keep separate baselines so responsive failures do not disappear inside a desktop check.",
   },
   {
     label: "Browser",
     title: "JavaScript and asset failures",
-    body: "Console errors, failed scripts, broken images, error pages, and incomplete renders are collected as evidence instead of disappearing behind a 200 status.",
+    body: "Console errors, failed scripts, broken images, and incomplete renders become evidence attached to the incident.",
   },
   {
     label: "Visual",
     title: "Meaningful regressions",
-    body: "Accepted baselines, ignore regions, and stabilization reduce noise so visual changes can become useful incidents rather than a screenshot inbox.",
+    body: "Accepted baselines, ignore regions, and stabilization reduce noise before Witch decides a visual change matters.",
   },
 ];
 
@@ -30,17 +30,17 @@ const steps = [
   {
     number: "01",
     title: "Check the connection",
-    body: "HTTP status, TLS validity, redirects, and latency are checked first with public-network validation and strict fetch limits.",
+    body: "HTTP, TLS, redirects, and latency establish whether the endpoint itself is reachable.",
   },
   {
     number: "02",
-    title: "Open the page",
-    body: "Paid plans render the site in Chromium on desktop and mobile, wait for the page to stabilize, then capture DOM signals and a visual snapshot.",
+    title: "Render the page",
+    body: "Paid plans open the page in Chromium on desktop and mobile, stabilize it, and collect DOM, console, asset, and visual signals.",
   },
   {
     number: "03",
-    title: "Explain the change",
-    body: "Witch compares the result with the accepted baseline, opens an incident when the evidence matters, and can attach AI analysis on paid plans.",
+    title: "Open useful incidents",
+    body: "Witch compares the result with the accepted state, keeps the evidence, and can attach AI analysis when a failure is confirmed.",
   },
 ];
 
@@ -48,73 +48,205 @@ const plans = [
   {
     name: "Free",
     price: "$0",
-    note: "For one public site",
-    accent: false,
-    features: ["1 site", "HTTP, TLS, latency", "30-minute interval", "7-day history", "Public status page"],
+    note: "Basic availability",
+    features: ["1 site", "HTTP + TLS", "30-minute checks", "7-day history", "Public status page"],
   },
   {
     name: "Freelancer",
     price: "$9",
-    note: "For independent developers",
-    accent: false,
-    features: ["5 sites", "Desktop + mobile Chromium", "Visual baselines", "Email + Discord alerts", "AI incident analysis", "30-day history"],
+    note: "Browser monitoring",
+    features: ["5 sites", "Desktop + mobile Chromium", "Visual baselines", "Email + Discord", "AI incident analysis"],
   },
   {
     name: "Agency",
     price: "$24",
-    note: "For client portfolios",
-    accent: true,
-    features: ["25 sites", "Visual ignore masks", "Up to 10 members", "Reports + alerts", "90-day history", "5 workspaces"],
+    note: "Client portfolios",
+    featured: true,
+    features: ["25 sites", "Visual ignore masks", "10 members", "Reports", "90-day history"],
   },
   {
     name: "Agency Pro",
     price: "$49",
-    note: "For larger portfolios",
-    accent: false,
-    features: ["75 sites", "5-minute browser interval", "Priority checks", "Advanced reporting", "180-day history", "Up to 25 members"],
+    note: "Higher-volume teams",
+    features: ["75 sites", "5-minute browser checks", "Priority checks", "180-day history", "25 members"],
   },
 ];
 
-const questions = [
-  {
-    q: "How is this different from an uptime monitor?",
-    a: "An uptime monitor can stay green while the interface is unusable. Witch keeps HTTP and TLS checks, then adds real browser rendering, visual baselines, DOM signals, and browser errors on paid plans.",
-  },
-  {
-    q: "Will Witch hammer my website?",
-    a: "No. Checks use plan-based intervals, jitter, concurrency limits, request caps, byte budgets, and isolated browser contexts. It is designed to observe a page, not crawl an entire site.",
-  },
-  {
-    q: "What happens when something changes?",
-    a: "Witch records the evidence and classifies the failure. Uptime failures are confirmed before alerting, visual and browser issues can open incidents, and recovery requires healthy checks before the incident closes.",
-  },
-];
+function BrowserDemo() {
+  return (
+    <div className="overflow-hidden rounded-[22px] border border-white/10 bg-[#0d0a10] shadow-[0_32px_90px_rgba(0,0,0,.42)]">
+      <div className="flex items-center justify-between border-b border-white/8 px-3 py-3 sm:px-5">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+          <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+          <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+        </div>
+        <div className="mx-3 min-w-0 flex-1 sm:max-w-md">
+          <div className="truncate rounded-full bg-white/[0.055] px-3 py-1.5 text-center font-mono text-[9px] text-white/38 sm:text-[10px]">
+            shop.example.com/checkout
+          </div>
+        </div>
+        <span className="hidden font-mono text-[10px] text-white/30 sm:block">390px</span>
+      </div>
+
+      <div className="grid lg:grid-cols-[1.18fr_.82fr]">
+        <div className="relative min-h-[360px] overflow-hidden border-b border-white/8 bg-[#f2eee7] p-4 text-[#1b171b] sm:min-h-[430px] sm:p-7 lg:border-b-0 lg:border-r">
+          <div className="mx-auto max-w-md">
+            <div className="flex items-center justify-between">
+              <span className="font-serif text-[18px] font-semibold tracking-tight">Northstar</span>
+              <div className="flex gap-3 text-[9px] text-black/40 sm:text-[10px]">
+                <span>Shop</span>
+                <span>Account</span>
+              </div>
+            </div>
+
+            <div className="mt-10 sm:mt-14">
+              <span className="text-[10px] uppercase tracking-[.16em] text-black/40">Order summary</span>
+              <h3 className="mt-2 font-serif text-3xl tracking-tight sm:text-4xl">Almost yours.</h3>
+              <p className="mt-3 max-w-xs text-[12px] leading-5 text-black/45 sm:text-[13px]">
+                Shipping and payment loaded correctly. The final purchase control did not.
+              </p>
+
+              <div className="mt-8 space-y-3 rounded-2xl bg-white/70 p-4 sm:p-5">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-black/45">Subtotal</span>
+                  <span>$89.00</span>
+                </div>
+                <div className="flex justify-between border-t border-black/8 pt-3 text-[11px]">
+                  <span className="text-black/45">Shipping</span>
+                  <span>Free</span>
+                </div>
+                <div className="flex justify-between border-t border-black/8 pt-3 text-[12px] font-semibold">
+                  <span>Total</span>
+                  <span>$89.00</span>
+                </div>
+              </div>
+
+              <div className="mt-5 flex min-h-12 items-center justify-center rounded-xl border border-dashed border-[#d14b62]/50 bg-[#d14b62]/5 px-3 text-center text-[11px] font-medium text-[#a62d44]">
+                Expected checkout button missing
+              </div>
+            </div>
+          </div>
+
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#f2eee7] to-transparent" />
+        </div>
+
+        <div className="bg-[#120d16] p-4 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-[.16em] text-white/35 sm:text-[10px]">Witch incident</p>
+              <h3 className="mt-2 text-[18px] font-medium text-white sm:text-[20px]">Checkout control missing</h3>
+            </div>
+            <span className="rounded-full bg-[#d14b62]/12 px-2 py-1 text-[9px] font-medium text-[#f18aa0] sm:text-[10px]">
+              HIGH
+            </span>
+          </div>
+
+          <div className="mt-6 space-y-0 border-y border-white/8 font-mono text-[10px] sm:text-[11px]">
+            <div className="flex items-center justify-between gap-4 py-3">
+              <span className="text-white/35">HTTP</span>
+              <span className="text-[#75d39b]">200 OK</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 border-t border-white/8 py-3">
+              <span className="text-white/35">TLS</span>
+              <span className="text-[#75d39b]">Valid</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 border-t border-white/8 py-3">
+              <span className="text-white/35">DOM</span>
+              <span className="text-[#f18aa0]">button.checkout missing</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 border-t border-white/8 py-3">
+              <span className="text-white/35">Viewport</span>
+              <span className="text-white/70">Mobile · 390px</span>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-xl bg-white/[0.045] p-4">
+            <div className="flex items-center gap-2 text-[11px] font-medium text-white/80">
+              <Sparkles className="h-3.5 w-3.5 text-[#c9a5d7]" />
+              Likely cause
+            </div>
+            <p className="mt-2 text-[11px] leading-5 text-white/45 sm:text-[12px]">
+              The page and payment summary rendered, but the expected purchase control never appeared after stabilization.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ComparisonDemo() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#f0ece5] text-[#181518]">
+        <div className="flex items-center justify-between border-b border-black/8 px-4 py-3 text-[10px]">
+          <span className="font-medium">Accepted baseline</span>
+          <span className="font-mono text-black/35">mobile</span>
+        </div>
+        <div className="p-4 sm:p-5">
+          <div className="h-3 w-20 rounded-full bg-black/10" />
+          <div className="mt-7 h-7 w-36 rounded-md bg-black/85" />
+          <div className="mt-3 h-3 w-44 max-w-full rounded-full bg-black/10" />
+          <div className="mt-1.5 h-3 w-32 rounded-full bg-black/10" />
+          <div className="mt-8 space-y-2 rounded-xl bg-white/75 p-4">
+            <div className="h-3 w-full rounded-full bg-black/[0.07]" />
+            <div className="h-3 w-4/5 rounded-full bg-black/[0.07]" />
+          </div>
+          <div className="mt-4 flex h-11 items-center justify-center rounded-xl bg-[#211a22] text-[11px] font-semibold text-white">
+            Complete purchase
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-[18px] border border-[#d55d75]/25 bg-[#f0ece5] text-[#181518]">
+        <div className="flex items-center justify-between border-b border-black/8 px-4 py-3 text-[10px]">
+          <span className="font-medium text-[#a63149]">Current render</span>
+          <span className="font-mono text-black/35">mobile</span>
+        </div>
+        <div className="p-4 sm:p-5">
+          <div className="h-3 w-20 rounded-full bg-black/10" />
+          <div className="mt-7 h-7 w-36 rounded-md bg-black/85" />
+          <div className="mt-3 h-3 w-44 max-w-full rounded-full bg-black/10" />
+          <div className="mt-1.5 h-3 w-32 rounded-full bg-black/10" />
+          <div className="mt-8 space-y-2 rounded-xl bg-white/75 p-4">
+            <div className="h-3 w-full rounded-full bg-black/[0.07]" />
+            <div className="h-3 w-4/5 rounded-full bg-black/[0.07]" />
+          </div>
+          <div className="mt-4 flex h-11 items-center justify-center rounded-xl border border-dashed border-[#d55d75]/55 bg-[#d55d75]/5 text-[10px] font-semibold text-[#a63149]">
+            Missing from render
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function HomePage() {
   return (
     <div
-      className={"landing-page " + fontSerif.variable + " " + fontSans.variable + " overflow-x-hidden"}
+      className={"landing-page " + fontSerif.variable + " " + fontSans.variable + " overflow-x-clip"}
       style={{ backgroundColor: "var(--landing-bg)", color: "var(--landing-text)" }}
     >
-      <header className="sticky top-0 z-50 bg-[var(--landing-bg)]/84 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
-          <Link href="/" aria-label="Witch home" className="text-[var(--landing-text)]">
+      <header className="sticky top-0 z-50 border-b border-white/[0.04] bg-[var(--landing-bg)]/88 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:h-16 sm:px-6 lg:px-10">
+          <Link href="/" aria-label="Witch home" className="shrink-0 text-[var(--landing-text)]">
             <Wordmark />
           </Link>
 
-          <nav className="flex items-center gap-2 sm:gap-5 text-[14px]">
-            <a href="#how" className="hidden sm:inline text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)]">
+          <nav className="flex items-center gap-1.5 text-[13px] sm:gap-4 sm:text-[14px]">
+            <a href="#how" className="hidden text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)] md:inline">
               How it works
             </a>
-            <a href="#pricing" className="hidden md:inline text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)]">
+            <a href="#pricing" className="hidden text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)] md:inline">
               Pricing
             </a>
-            <Link href="/login" className="hidden sm:inline text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)]">
+            <Link href="/login" className="hidden text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)] sm:inline">
               Sign in
             </Link>
             <Link
               href="/signup"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-[var(--landing-text)] px-4 text-[13px] font-semibold text-[var(--landing-bg)] transition-opacity hover:opacity-90"
+              className="inline-flex h-9 items-center justify-center rounded-full bg-[var(--landing-text)] px-3.5 font-semibold text-[var(--landing-bg)] sm:px-4"
             >
               Start free
             </Link>
@@ -123,180 +255,153 @@ export default function HomePage() {
       </header>
 
       <main>
-        <section className="relative isolate overflow-hidden">
-          <div className="pointer-events-none absolute inset-x-0 top-0 -z-20 h-[760px] opacity-70">
-            <Image src="/header-landing.png" alt="" fill priority sizes="100vw" className="object-cover object-top opacity-60 mix-blend-screen" />
-          </div>
+        <section className="relative isolate">
           <div
-            className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[780px]"
+            className="pointer-events-none absolute inset-x-0 top-[-80px] -z-10 h-[620px] sm:h-[760px]"
             style={{
               background:
-                "radial-gradient(circle at 50% 18%, rgba(142,102,166,.16), transparent 36%), linear-gradient(to bottom, rgba(7,7,9,.22), rgba(7,7,9,.62) 58%, var(--landing-bg) 100%)",
+                "radial-gradient(circle at 50% 16%, rgba(144,95,169,.22), transparent 34%), radial-gradient(circle at 16% 24%, rgba(82,56,96,.13), transparent 28%)",
             }}
           />
 
-          <div className="mx-auto max-w-7xl px-5 pb-20 pt-20 text-center sm:px-8 sm:pb-28 sm:pt-28 lg:px-10 lg:pt-32">
-            <p className="landing-sans text-[12px] font-medium uppercase tracking-[0.22em] text-[var(--landing-text-muted)]">
+          <div className="mx-auto max-w-7xl px-4 pb-16 pt-14 text-center sm:px-6 sm:pb-24 sm:pt-24 lg:px-10 lg:pt-28">
+            <p className="landing-sans text-[10px] font-medium uppercase tracking-[0.2em] text-[var(--landing-text-muted)] sm:text-[11px]">
               Browser monitoring beyond uptime
             </p>
-            <h1 className="landing-serif mx-auto mt-6 max-w-4xl text-[2.65rem] font-medium leading-[1.02] tracking-[-0.035em] text-[var(--landing-text)] sm:text-6xl lg:text-[4.9rem]">
+
+            <h1 className="landing-serif mx-auto mt-5 max-w-[980px] text-[clamp(2.5rem,10vw,5.2rem)] font-medium leading-[.98] tracking-[-0.045em] text-[var(--landing-text)]">
               Your site can be online
               <span className="block text-[var(--landing-text-muted)]">and completely broken.</span>
             </h1>
-            <p className="landing-sans mx-auto mt-7 max-w-2xl text-[17px] leading-7 text-[var(--landing-text-muted)] sm:text-[19px]">
-              Witch watches the page, not just the port. It checks HTTP and TLS, then uses Chromium to catch missing controls,
-              broken mobile layouts, failed scripts, and visual regressions.
+
+            <p className="landing-sans mx-auto mt-6 max-w-2xl text-[15px] leading-6 text-[var(--landing-text-muted)] sm:text-[18px] sm:leading-7">
+              Witch watches what people actually receive. HTTP and TLS first, then real Chromium renders to catch missing controls,
+              broken mobile layouts, browser errors, and visual regressions.
             </p>
 
-            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <div className="mx-auto mt-8 flex max-w-sm flex-col gap-2.5 sm:max-w-none sm:flex-row sm:justify-center">
               <Link
                 href="/signup"
-                className="inline-flex h-12 w-full items-center justify-center rounded-full bg-[var(--landing-text)] px-7 text-[14px] font-semibold text-[var(--landing-bg)] transition-transform hover:-translate-y-0.5 sm:w-auto"
+                className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--landing-text)] px-6 text-[14px] font-semibold text-[var(--landing-bg)] sm:w-auto"
               >
                 Monitor your first site
               </Link>
               <a
                 href="#incident"
-                className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[14px] font-medium text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)] sm:w-auto"
+                className="inline-flex min-h-12 w-full items-center justify-center rounded-full px-5 text-[14px] font-medium text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)] sm:w-auto"
               >
-                See what Witch catches ↓
+                See what Witch catches
               </a>
             </div>
-            <p className="mt-4 text-[12px] text-[var(--landing-text-muted)]">Free HTTP + TLS monitoring. No credit card.</p>
 
-            <div className="mx-auto mt-14 max-w-6xl sm:mt-20">
-              <div className="mb-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-mono text-[11px] text-[var(--landing-text-muted)]">
+            <p className="mt-3 text-[11px] text-[var(--landing-text-muted)]">Free HTTP + TLS monitoring. No credit card.</p>
+
+            <div className="mx-auto mt-12 max-w-6xl text-left sm:mt-16 lg:mt-20">
+              <div className="mb-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 font-mono text-[9px] text-[var(--landing-text-muted)] sm:gap-x-5 sm:text-[10px]">
                 <span>HTTP 200 ✓</span>
-                <span className="text-rose-300">Checkout CTA missing</span>
+                <span className="text-[#e58499]">Checkout missing</span>
                 <span>Mobile · 390px</span>
-                <span>Evidence attached</span>
+                <span className="hidden sm:inline">Evidence attached</span>
               </div>
-              <div className="relative overflow-hidden rounded-[22px] bg-white/[0.025] p-1 shadow-[0_35px_120px_rgba(0,0,0,.42)] ring-1 ring-white/[0.08]">
-                <Image
-                  src="/product-screenshot.png"
-                  alt="Witch dashboard showing browser monitoring and visual evidence"
-                  width={1600}
-                  height={1000}
-                  priority
-                  className="h-auto w-full rounded-[18px] object-cover object-left-top"
-                />
-              </div>
+              <BrowserDemo />
             </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10">
+        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24 lg:px-10 lg:py-28">
           <div className="max-w-2xl">
-            <p className="text-[12px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">The gap</p>
-            <h2 className="landing-serif mt-4 text-4xl font-medium leading-tight tracking-[-0.025em] sm:text-5xl">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)] sm:text-[11px]">The gap</p>
+            <h2 className="landing-serif mt-3 text-[clamp(2rem,8vw,3.4rem)] font-medium leading-[1.04] tracking-[-0.035em]">
               Green does not mean working.
             </h2>
-            <p className="landing-sans mt-5 text-[17px] leading-7 text-[var(--landing-text-muted)]">
-              A server can answer perfectly while the thing users came to do has vanished. Witch is built for that uncomfortable
-              space between “the host is alive” and “the product actually works.”
+            <p className="mt-4 text-[15px] leading-6 text-[var(--landing-text-muted)] sm:text-[17px] sm:leading-7">
+              A server can answer perfectly while the thing users came to do has vanished. Witch watches the uncomfortable space
+              between “the host is alive” and “the product works.”
             </p>
           </div>
 
-          <div className="mt-16 divide-y divide-white/[0.07]">
+          <div className="mt-10 divide-y divide-white/[0.07] sm:mt-14">
             {signals.map((item) => (
-              <div key={item.title} className="grid gap-3 py-8 sm:grid-cols-[150px_1fr] sm:gap-10">
-                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--landing-text-muted)]">{item.label}</p>
-                <div>
-                  <h3 className="text-[20px] font-medium text-[var(--landing-text)]">{item.title}</h3>
-                  <p className="mt-2 max-w-2xl text-[15px] leading-7 text-[var(--landing-text-muted)]">{item.body}</p>
+              <div key={item.title} className="grid gap-2 py-6 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-8 sm:py-7">
+                <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--landing-text-muted)] sm:text-[10px]">{item.label}</p>
+                <div className="min-w-0">
+                  <h3 className="text-[17px] font-medium sm:text-[19px]">{item.title}</h3>
+                  <p className="mt-1.5 max-w-2xl text-[14px] leading-6 text-[var(--landing-text-muted)] sm:text-[15px]">{item.body}</p>
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        <section id="incident" className="relative overflow-hidden bg-[#140d18] py-20 text-[#f6f1f7] sm:py-28">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-50"
-            style={{
-              background:
-                "radial-gradient(circle at 74% 30%, rgba(169,113,194,.16), transparent 33%), radial-gradient(circle at 18% 75%, rgba(82,50,99,.2), transparent 30%)",
-            }}
-          />
-          <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
-            <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
-              <div className="lg:sticky lg:top-28 lg:self-start">
-                <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-white/45">Fixture replay</p>
-                <h2 className="landing-serif mt-4 text-4xl font-medium leading-tight tracking-[-0.025em] sm:text-5xl">
-                  HTTP stayed green.
-                  <span className="block text-[#cdaed7]">The checkout disappeared.</span>
+        <section id="incident" className="scroll-mt-16 bg-[#140d18] py-16 text-[#f6f1f7] sm:py-24 lg:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
+            <div className="grid gap-10 lg:grid-cols-[.78fr_1.22fr] lg:gap-14">
+              <div className="lg:sticky lg:top-24 lg:self-start">
+                <p className="font-mono text-[9px] uppercase tracking-[.16em] text-white/38 sm:text-[10px]">Detection, not decoration</p>
+                <h2 className="landing-serif mt-3 text-[clamp(2rem,8vw,3.5rem)] font-medium leading-[1.02] tracking-[-0.035em]">
+                  The page loaded.
+                  <span className="block text-[#c8a7d4]">The job did not.</span>
                 </h2>
-                <p className="mt-6 max-w-xl text-[16px] leading-7 text-white/60">
-                  This is the failure case Witch uses in its own test fixture: the page still responds, but the primary checkout
-                  control disappears on the mobile render.
+                <p className="mt-5 max-w-xl text-[14px] leading-6 text-white/55 sm:text-[16px] sm:leading-7">
+                  Witch compares the accepted render with the current one and keeps the browser evidence beside the incident.
+                  No fake customer screenshot is needed to explain what changed.
                 </p>
 
-                <div className="mt-8 space-y-0 border-y border-white/10 font-mono text-[12px]">
-                  <div className="flex items-center justify-between gap-5 py-3">
-                    <span className="text-white/40">HTTP</span>
-                    <span className="text-emerald-300">200 OK</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-5 border-t border-white/10 py-3">
-                    <span className="text-white/40">Viewport</span>
-                    <span>390px mobile</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-5 border-t border-white/10 py-3">
-                    <span className="text-white/40">DOM signal</span>
-                    <span className="text-rose-300">Checkout missing</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-5 border-t border-white/10 py-3">
-                    <span className="text-white/40">Evidence</span>
-                    <span>Screenshot + browser signals</span>
-                  </div>
+                <div className="mt-7 grid grid-cols-2 gap-2 sm:max-w-md">
+                  {[
+                    ["HTTP", "200 OK"],
+                    ["TLS", "Valid"],
+                    ["Viewport", "390px"],
+                    ["DOM", "CTA missing"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-xl bg-white/[0.045] px-3 py-3">
+                      <p className="font-mono text-[8px] uppercase tracking-[.12em] text-white/30 sm:text-[9px]">{label}</p>
+                      <p className="mt-1 text-[11px] font-medium text-white/75 sm:text-[12px]">{value}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div>
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <figure>
-                    <figcaption className="mb-3 flex items-center justify-between text-[12px] text-white/45">
-                      <span>Accepted baseline</span>
-                      <span className="font-mono">390 × 844</span>
-                    </figcaption>
-                    <div className="overflow-hidden rounded-[18px] bg-black/30 ring-1 ring-white/10">
-                      <Image src="/incident-before.png" alt="Fixture baseline with checkout button present" width={800} height={600} className="h-auto w-full" />
-                    </div>
-                  </figure>
-                  <figure>
-                    <figcaption className="mb-3 flex items-center justify-between text-[12px] text-rose-200/75">
-                      <span>Broken render</span>
-                      <span className="font-mono text-white/45">390 × 844</span>
-                    </figcaption>
-                    <div className="overflow-hidden rounded-[18px] bg-black/30 ring-1 ring-rose-300/20">
-                      <Image src="/incident-after.png" alt="Fixture render with checkout button missing" width={800} height={600} className="h-auto w-full" />
-                    </div>
-                  </figure>
+              <div className="min-w-0">
+                <ComparisonDemo />
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl bg-white/[0.04] p-4">
+                    <Eye className="h-4 w-4 text-[#c8a7d4]" />
+                    <p className="mt-3 text-[12px] font-medium">Visual baseline</p>
+                    <p className="mt-1 text-[11px] leading-5 text-white/38">Accepted per viewport.</p>
+                  </div>
+                  <div className="rounded-xl bg-white/[0.04] p-4">
+                    <CircleAlert className="h-4 w-4 text-[#ed8196]" />
+                    <p className="mt-3 text-[12px] font-medium">DOM signal</p>
+                    <p className="mt-1 text-[11px] leading-5 text-white/38">Expected element missing.</p>
+                  </div>
+                  <div className="rounded-xl bg-white/[0.04] p-4">
+                    <ShieldCheck className="h-4 w-4 text-[#75d39b]" />
+                    <p className="mt-3 text-[12px] font-medium">Network healthy</p>
+                    <p className="mt-1 text-[11px] leading-5 text-white/38">Endpoint itself stayed up.</p>
+                  </div>
                 </div>
-                <p className="mt-5 text-[13px] leading-6 text-white/45">
-                  Deterministic fixture example used to exercise the browser-monitoring pipeline. No invented customer name,
-                  fabricated incident date, or fake “production” claim.
-                </p>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 sm:px-8 sm:py-28 lg:px-10">
-          <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
+        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 sm:py-24 lg:px-10 lg:py-28">
+          <div className="grid gap-10 lg:grid-cols-[.78fr_1.22fr] lg:gap-14">
             <div>
-              <p className="text-[12px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">How it works</p>
-              <h2 className="landing-serif mt-4 text-4xl font-medium leading-tight tracking-[-0.025em] sm:text-5xl">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">How it works</p>
+              <h2 className="landing-serif mt-3 text-[clamp(2rem,8vw,3.4rem)] font-medium leading-[1.04] tracking-[-0.035em]">
                 Three layers.
                 <span className="block text-[var(--landing-text-muted)]">One incident timeline.</span>
               </h2>
             </div>
             <ol className="divide-y divide-white/[0.07]">
               {steps.map((step) => (
-                <li key={step.number} className="grid gap-3 py-7 first:pt-0 sm:grid-cols-[54px_1fr]">
-                  <span className="font-mono text-[11px] text-[var(--landing-text-muted)]">{step.number}</span>
-                  <div>
-                    <h3 className="text-[19px] font-medium">{step.title}</h3>
-                    <p className="mt-2 text-[15px] leading-7 text-[var(--landing-text-muted)]">{step.body}</p>
+                <li key={step.number} className="grid gap-2 py-6 first:pt-0 sm:grid-cols-[44px_minmax(0,1fr)] sm:gap-5">
+                  <span className="font-mono text-[9px] text-[var(--landing-text-muted)] sm:text-[10px]">{step.number}</span>
+                  <div className="min-w-0">
+                    <h3 className="text-[17px] font-medium sm:text-[19px]">{step.title}</h3>
+                    <p className="mt-1.5 text-[14px] leading-6 text-[var(--landing-text-muted)] sm:text-[15px] sm:leading-7">{step.body}</p>
                   </div>
                 </li>
               ))}
@@ -304,105 +409,103 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10">
-          <div className="relative overflow-hidden rounded-[28px] bg-white/[0.035] px-6 py-10 ring-1 ring-white/[0.07] sm:px-10 sm:py-14 lg:px-14">
-            <div
-              className="pointer-events-none absolute right-[-120px] top-[-140px] h-[360px] w-[360px] rounded-full opacity-40 blur-3xl"
-              style={{ background: "rgba(145, 94, 168, .18)" }}
-            />
-            <div className="relative grid gap-10 lg:grid-cols-2 lg:items-center">
+        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24 lg:px-10 lg:py-28">
+          <div className="overflow-hidden rounded-[22px] border border-white/[0.07] bg-white/[0.03] p-5 sm:rounded-[28px] sm:p-8 lg:p-12">
+            <div className="grid gap-9 lg:grid-cols-[1fr_.9fr] lg:items-center">
               <div>
-                <p className="text-[12px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">For client work</p>
-                <h2 className="landing-serif mt-4 text-4xl font-medium leading-tight tracking-[-0.025em] sm:text-5xl">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">For client work</p>
+                <h2 className="landing-serif mt-3 text-[clamp(2rem,8vw,3.4rem)] font-medium leading-[1.04] tracking-[-0.035em]">
                   Make invisible maintenance visible.
                 </h2>
-                <p className="mt-5 max-w-xl text-[16px] leading-7 text-[var(--landing-text-muted)]">
-                  Witch keeps a record of checks, incidents, recoveries, and visual evidence. Agency plans add team access,
-                  longer history, and reports you can open in the app and print or save as PDF.
+                <p className="mt-4 max-w-xl text-[14px] leading-6 text-[var(--landing-text-muted)] sm:text-[16px] sm:leading-7">
+                  Checks, incidents, recoveries, and visual evidence live in one history. Agency plans add teams, longer retention,
+                  and reports you can print or save as PDF.
                 </p>
               </div>
 
-              <div className="bg-[#f4f1ec] p-6 text-[#191818] shadow-2xl sm:p-8">
-                <div className="flex items-start justify-between gap-4 border-b border-black/10 pb-5">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/45">Example report</p>
-                    <h3 className="mt-1 text-[17px] font-semibold">Monthly reliability summary</h3>
+              <div className="min-w-0 bg-[#f1ede6] p-4 text-[#191618] sm:p-6">
+                <div className="flex items-start justify-between gap-3 border-b border-black/10 pb-4">
+                  <div className="min-w-0">
+                    <p className="text-[8px] font-semibold uppercase tracking-[.14em] text-black/40 sm:text-[9px]">Reliability report</p>
+                    <h3 className="mt-1 truncate text-[14px] font-semibold sm:text-[16px]">Client workspace</h3>
                   </div>
-                  <span className="font-mono text-[10px] text-black/40">30 days</span>
+                  <span className="shrink-0 font-mono text-[8px] text-black/35 sm:text-[9px]">30 days</span>
                 </div>
-                <dl className="mt-5 space-y-4 text-[13px]">
-                  <div className="flex justify-between gap-5">
-                    <dt className="text-black/50">HTTP uptime</dt>
-                    <dd className="font-medium">Included</dd>
-                  </div>
-                  <div className="flex justify-between gap-5 border-t border-black/10 pt-4">
-                    <dt className="text-black/50">Browser checks</dt>
-                    <dd className="font-medium">Desktop + mobile</dd>
-                  </div>
-                  <div className="flex justify-between gap-5 border-t border-black/10 pt-4">
-                    <dt className="text-black/50">Incidents</dt>
-                    <dd className="font-medium">Detected + resolved</dd>
-                  </div>
-                  <div className="flex justify-between gap-5 border-t border-black/10 pt-4">
-                    <dt className="text-black/50">Visual evidence</dt>
-                    <dd className="font-medium">Attached when available</dd>
-                  </div>
-                </dl>
-                <p className="mt-6 border-t border-black/10 pt-4 text-[11px] leading-5 text-black/45">
-                  Illustrative layout. Report values come from the monitored workspace, not from marketing sample data.
-                </p>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  {[
+                    ["HTTP uptime", "99.98%"],
+                    ["Browser checks", "1,284"],
+                    ["Incidents", "3"],
+                    ["Recovered", "3"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="border-t border-black/10 pt-3">
+                      <p className="text-[9px] text-black/40 sm:text-[10px]">{label}</p>
+                      <p className="mt-1 font-mono text-[16px] font-medium sm:text-[18px]">{value}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-5 flex gap-1">
+                  {Array.from({ length: 18 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={"h-7 flex-1 rounded-[2px] " + (i === 11 ? "bg-[#d6a047]" : i === 12 ? "bg-[#c9596d]" : "bg-[#4e956d]")}
+                    />
+                  ))}
+                </div>
+                <p className="mt-2 text-[8px] text-black/35">Example layout using the same metrics Witch stores for reports.</p>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 sm:px-8 sm:py-28 lg:px-10">
+        <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 sm:py-24 lg:px-10 lg:py-28">
           <div className="max-w-2xl">
-            <p className="text-[12px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">Pricing</p>
-            <h2 className="landing-serif mt-4 text-4xl font-medium tracking-[-0.025em] sm:text-5xl">
-              Start small. Upgrade when the browser matters.
+            <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">Pricing</p>
+            <h2 className="landing-serif mt-3 text-[clamp(2rem,8vw,3.4rem)] font-medium leading-[1.04] tracking-[-0.035em]">
+              Start with availability. Add the browser when it matters.
             </h2>
-            <p className="mt-5 text-[16px] leading-7 text-[var(--landing-text-muted)]">
-              Free covers basic availability. Paid plans unlock Chromium, visual monitoring, alerts, AI analysis, and longer history.
-            </p>
           </div>
 
-          <div className="mt-14 divide-y divide-white/[0.07] border-y border-white/[0.07]">
+          <div className="mt-10 divide-y divide-white/[0.07] border-y border-white/[0.07] sm:mt-14">
             {plans.map((plan) => (
               <div
                 key={plan.name}
                 className={
-                  "grid gap-7 py-8 lg:grid-cols-[190px_120px_1fr_auto] lg:items-center " +
-                  (plan.accent ? "bg-white/[0.025] -mx-4 px-4 sm:-mx-6 sm:px-6" : "")
+                  "grid gap-5 py-7 sm:grid-cols-[1fr_auto] sm:items-start lg:grid-cols-[150px_100px_minmax(0,1fr)_auto] lg:items-center lg:gap-8 " +
+                  (plan.featured ? "bg-white/[0.025] -mx-3 px-3 sm:-mx-5 sm:px-5" : "")
                 }
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-[18px] font-medium">{plan.name}</h3>
-                    {plan.accent ? (
-                      <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-[10px] text-[var(--landing-text-muted)]">popular</span>
+                    <h3 className="text-[17px] font-medium">{plan.name}</h3>
+                    {plan.featured ? (
+                      <span className="rounded-full bg-white/[0.07] px-2 py-0.5 text-[8px] uppercase tracking-[.1em] text-[var(--landing-text-muted)]">popular</span>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-[12px] text-[var(--landing-text-muted)]">{plan.note}</p>
+                  <p className="mt-1 text-[11px] text-[var(--landing-text-muted)]">{plan.note}</p>
                 </div>
-                <p className="text-3xl font-medium tracking-tight">
+
+                <p className="text-3xl font-medium tracking-tight sm:text-right lg:text-left">
                   {plan.price}
-                  {plan.price !== "$0" ? <span className="ml-1 text-[11px] font-normal text-[var(--landing-text-muted)]">/mo</span> : null}
+                  {plan.price !== "$0" ? <span className="ml-1 text-[10px] font-normal text-[var(--landing-text-muted)]">/mo</span> : null}
                 </p>
-                <ul className="grid gap-x-8 gap-y-2 text-[13px] text-[var(--landing-text-muted)] sm:grid-cols-2">
+
+                <ul className="grid gap-2 text-[12px] text-[var(--landing-text-muted)] sm:col-span-2 sm:grid-cols-2 lg:col-span-1">
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-2">
-                      <span className="h-1 w-1 shrink-0 rounded-full bg-[var(--landing-text-muted)]" />
-                      {feature}
+                    <li key={feature} className="flex min-w-0 items-center gap-2">
+                      <Check className="h-3 w-3 shrink-0 opacity-55" />
+                      <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
+
                 <Link
                   href="/signup"
                   className={
-                    plan.accent
-                      ? "inline-flex h-10 items-center justify-center rounded-full bg-[var(--landing-text)] px-5 text-[13px] font-semibold text-[var(--landing-bg)] transition-opacity hover:opacity-90"
-                      : "inline-flex h-10 items-center justify-center rounded-full bg-white/[0.055] px-5 text-[13px] font-semibold text-[var(--landing-text)] transition-colors hover:bg-white/[0.09]"
+                    "inline-flex min-h-10 w-full items-center justify-center rounded-full px-5 text-[12px] font-semibold sm:col-span-2 lg:col-span-1 lg:w-auto " +
+                    (plan.featured
+                      ? "bg-[var(--landing-text)] text-[var(--landing-bg)]"
+                      : "bg-white/[0.055] text-[var(--landing-text)]")
                   }
                 >
                   {plan.price === "$0" ? "Start free" : "Get started"}
@@ -412,42 +515,49 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-4xl px-5 py-20 sm:px-8 sm:py-28">
-          <h2 className="landing-serif text-4xl font-medium tracking-[-0.025em] sm:text-5xl">A few useful answers.</h2>
-          <div className="mt-12 divide-y divide-white/[0.07]">
-            {questions.map((item) => (
-              <div key={item.q} className="py-7">
-                <h3 className="text-[18px] font-medium">{item.q}</h3>
-                <p className="mt-3 max-w-3xl text-[15px] leading-7 text-[var(--landing-text-muted)]">{item.a}</p>
+        <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 sm:py-24">
+          <div className="flex items-center gap-2 text-[var(--landing-text-muted)]">
+            <Globe2 className="h-4 w-4" />
+            <span className="font-mono text-[9px] uppercase tracking-[.15em]">Questions</span>
+          </div>
+          <div className="mt-8 divide-y divide-white/[0.07]">
+            {[
+              ["How is this different from an uptime monitor?", "Uptime checks whether an endpoint answers. Witch can also render the page, compare accepted visual state, inspect expected elements, and collect browser errors."],
+              ["Will it hammer my website?", "No. Checks use plan-based intervals, jitter, concurrency limits, request caps, and byte budgets. Witch observes a page, it is not a crawler."],
+              ["What happens when something breaks?", "The failed signals and evidence are kept with the incident. Recovery requires healthy checks before the incident closes."],
+            ].map(([q, a]) => (
+              <div key={q} className="py-6">
+                <h3 className="text-[16px] font-medium sm:text-[18px]">{q}</h3>
+                <p className="mt-2 text-[14px] leading-6 text-[var(--landing-text-muted)] sm:text-[15px] sm:leading-7">{a}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="mx-auto max-w-5xl px-5 pb-28 pt-16 text-center sm:px-8 sm:pb-36 sm:pt-24">
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--landing-text-muted)]">The server is not the product.</p>
-          <h2 className="landing-serif mx-auto mt-5 max-w-3xl text-4xl font-medium leading-tight tracking-[-0.03em] sm:text-6xl">
+        <section className="mx-auto max-w-4xl px-4 pb-24 pt-12 text-center sm:px-6 sm:pb-32 sm:pt-20">
+          <p className="font-mono text-[9px] uppercase tracking-[.18em] text-[var(--landing-text-muted)]">The server is not the product.</p>
+          <h2 className="landing-serif mx-auto mt-4 max-w-3xl text-[clamp(2.2rem,9vw,4.1rem)] font-medium leading-[1.02] tracking-[-0.04em]">
             Know when the page stops doing its job.
           </h2>
           <Link
             href="/signup"
-            className="mt-9 inline-flex h-12 items-center justify-center rounded-full bg-[var(--landing-text)] px-8 text-[14px] font-semibold text-[var(--landing-bg)] transition-transform hover:-translate-y-0.5"
+            className="mt-7 inline-flex min-h-12 w-full max-w-xs items-center justify-center rounded-full bg-[var(--landing-text)] px-7 text-[14px] font-semibold text-[var(--landing-bg)] sm:w-auto"
           >
             Start monitoring
           </Link>
         </section>
       </main>
 
-      <footer className="border-t border-white/[0.06] py-10">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 text-[13px] text-[var(--landing-text-muted)] sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
+      <footer className="border-t border-white/[0.06] py-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 text-[12px] text-[var(--landing-text-muted)] sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
           <Link href="/" aria-label="Witch home" className="text-[var(--landing-text)]">
             <Wordmark />
           </Link>
-          <div className="flex flex-wrap gap-x-6 gap-y-3">
-            <a href="#how" className="transition-colors hover:text-[var(--landing-text)]">How it works</a>
-            <a href="#pricing" className="transition-colors hover:text-[var(--landing-text)]">Pricing</a>
-            <Link href="/login" className="transition-colors hover:text-[var(--landing-text)]">Sign in</Link>
-            <Link href="/signup" className="transition-colors hover:text-[var(--landing-text)]">Create account</Link>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            <a href="#how">How it works</a>
+            <a href="#pricing">Pricing</a>
+            <Link href="/login">Sign in</Link>
+            <Link href="/signup">Create account</Link>
           </div>
         </div>
       </footer>
