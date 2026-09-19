@@ -7,7 +7,9 @@ import { StatusBadge, Badge } from "@/components/ui";
 import { Wordmark } from "@/components/logo";
 import { Globe, ShieldCheck, Clock, ExternalLink } from "lucide-react";
 import { UptimeHistoryBar, type DayUptime } from "@/components/uptime-history-bar";
-import { StatusSubscribeDialog } from "@/components/status-subscribe-dialog";\nimport { emailEnabled } from "@/lib/env";\nimport { canUseEmailAlerts, getEffectivePlan } from "@/lib/plans";
+import { StatusSubscribeDialog } from "@/components/status-subscribe-dialog";
+import { emailEnabled } from "@/lib/env";
+import { canUseEmailAlerts, getEffectivePlan } from "@/lib/plans";
 
 type DailyHttpCheck = {
   siteId: string;
