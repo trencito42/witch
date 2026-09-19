@@ -82,7 +82,7 @@ export default async function OverviewPage() {
   const staleSites = orgSites.filter(
     (site) => site.status !== "PAUSED" && isMonitoringStale(site),
   );
-  const healthy = orgSites.filter((site) => site.status === "HEALTHY").length;
+  const healthy = orgSites.filter((site) => site.status === "HEALTHY" && !isMonitoringStale(site)).length;
 
   const [recentChecks] = await db
     .select({ value: count() })
@@ -124,7 +124,9 @@ export default async function OverviewPage() {
       iconBoxClass: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]",
       icon: <Globe className="h-6 w-6" aria-hidden="true" />,
       title: "No websites under watch yet",
-      description: "Add your first site to start HTTP checks and automated visual diffing.",
+      description: ctx.plan.browserMonitoring
+        ? "Add your first site to start HTTP checks, browser rendering, and visual baselines."
+        : "Add your first site to start HTTP, TLS, and latency checks.",
     };
   } else if (attention.length > 0) {
     headerConfig = {
@@ -204,7 +206,11 @@ export default async function OverviewPage() {
       {orgSites.length === 0 ? (
         <EmptyState
           title="No websites under watch"
-          description="Add your first website to deploy synthetic HTTP health checks, Chromium rendering, and automated visual baseline diffing."
+          description={
+            ctx.plan.browserMonitoring
+              ? "Add your first website to start HTTP checks, Chromium rendering, and visual baseline comparisons."
+              : "Add your first website to start HTTP, TLS, and latency monitoring."
+          }
           action={
             <Link href="/onboarding">
               <Button leadingIcon={<Plus className="h-4 w-4" />}>
