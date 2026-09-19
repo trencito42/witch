@@ -58,6 +58,9 @@ async function main() {
   if (await columnExists("site", "visual_noise_settings")) {
     await markApplied("0003_visual_monitoring.sql");
   }
+  if (await columnExists("status_page_subscriber", "confirmed_at")) {
+    await markApplied("0004_status_subscriber_confirmation.sql");
+  }
 
   const dir = path.resolve("drizzle");
   const files = (await readdir(dir))
