@@ -159,6 +159,9 @@ export default async function OverviewPage() {
   const uptimeFormatter = new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   const latencyFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
+  const atSiteLimit =
+    Number.isFinite(ctx.plan.maxSites) && orgSites.length >= ctx.plan.maxSites;
+
   return (
     <div className="space-y-8">
       {/* STATUS HEADER */}
@@ -189,8 +192,11 @@ export default async function OverviewPage() {
           <div className="w-full sm:w-auto shrink-0">
             <AddSiteButton
               browserMonitoring={ctx.plan.browserMonitoring}
+              disabled={atSiteLimit}
               className="w-full sm:w-auto justify-center min-h-[44px]"
-            />
+            >
+              {atSiteLimit ? "Site limit reached" : "Add site"}
+            </AddSiteButton>
           </div>
         </div>
       </section>
@@ -359,7 +365,7 @@ export default async function OverviewPage() {
                 );
               })}
 
-              {orgSites.length <= 3 && (
+              {orgSites.length <= 3 && !atSiteLimit && (
                 <AddSiteCardButton browserMonitoring={ctx.plan.browserMonitoring} />
               )}
             </div>
