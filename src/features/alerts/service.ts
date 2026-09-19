@@ -154,15 +154,19 @@ export async function processEmailAlert(incidentId: string, organizationId: stri
     .where(and(eq(incidents.id, incidentId), eq(incidents.organizationId, organizationId)))
     .limit(1);
   if (!org || !incident) return;
-  if (SEVERITY_RANK[incident.severity] < SEVERITY_RANK[org.minAlertSeverity ?? "LOW"]) return;
-  if (kind === "detected" && !org.alertOnIncident) return;
-  if (kind === "resolved" && !org.alertOnRecovery) return;
 
-  const [site] = await db.select().from(sites).where(eq(sites.id, incident.siteId)).limit(1);
-  const channels = await db
+  const [site] = await db
     .select()
-    .from(alertChannels)
-    .where(and(eq(alertChannels.organizationId, organizationId), eq(alertChannels.enabled, true)));
+    .from(sites)
+    .where(and(eq(sites.id, incident.siteId), eq(sites.organizationId, organizationId)))
+    .limit(1);
+  if (!site) return;
+
+  const internalSeverityAllowed =
+    SEVERITY_RANK[incident.severity] >= SEVERITY_RANK[org.minAlertSeverity ?? "LOW"];
+  const internalKindAllowed =
+    kind === "resolved" ? Boolean(org.alertOnRecovery) : Boolean(org.alertOnIncident);
+  const sendInternalAlerts = internalSeverityAllowed && internalKindAllowed;
 
   const evidence = Array.isArray((incident.metadata as { evidence?: string[] } | null)?.evidence)
     ? (incident.metadata as { evidence: string[] }).evidence
@@ -170,83 +174,93 @@ export async function processEmailAlert(incidentId: string, organizationId: stri
   const incidentUrl = `${appUrl()}/incidents/${incident.id}`;
   let emailError: Error | null = null;
 
-  for (const channel of channels) {
-    try {
-      if (channel.type === "EMAIL") {
-        if (!emailEnabled()) continue;
-        if (kind === "resolved") {
-          await sendRecoveryAlertEmail({
-            to: channel.destination,
-            siteName: site?.name ?? "Site",
-            title: incident.title,
-            incidentUrl,
+  if (sendInternalAlerts) {
+    const channels = await db
+      .select()
+      .from(alertChannels)
+      .where(and(eq(alertChannels.organizationId, organizationId), eq(alertChannels.enabled, true)));
+
+    for (const channel of channels) {
+      try {
+        if (channel.type === "EMAIL") {
+          if (!emailEnabled()) continue;
+          if (kind === "resolved") {
+            await sendRecoveryAlertEmail({
+              to: channel.destination,
+              siteName: site.name,
+              title: incident.title,
+              incidentUrl,
+            });
+          } else {
+            await sendIncidentAlertEmail({
+              to: channel.destination,
+              siteName: site.name,
+              siteUrl: site.url,
+              title: incident.title,
+              severity: incident.severity,
+              detectedAt: incident.firstDetectedAt.toISOString(),
+              summary: incident.summary,
+              evidence,
+              incidentUrl,
+            });
+          }
+        } else if (channel.type === "DISCORD_WEBHOOK") {
+          if (!isValidDiscordWebhookUrl(channel.destination)) {
+            throw new Error("Invalid Discord webhook URL");
+          }
+          await sendDiscordWebhook({
+            webhookUrl: channel.destination,
+            title: kind === "resolved" ? `Recovered: ${incident.title}` : incident.title,
+            description: incident.summary,
+            color: kind === "resolved" ? 0x3dd68c : 0xff5a36,
+            url: incidentUrl,
+            fields: [
+              { name: "Site", value: site.name, inline: true },
+              { name: "Severity", value: incident.severity, inline: true },
+              { name: "Evidence", value: evidence.slice(0, 4).join("\n") || "See incident" },
+            ],
           });
         } else {
-          await sendIncidentAlertEmail({
-            to: channel.destination,
-            siteName: site?.name ?? "Site",
-            siteUrl: site?.url ?? "",
-            title: incident.title,
-            severity: incident.severity,
-            detectedAt: incident.firstDetectedAt.toISOString(),
-            summary: incident.summary,
-            evidence,
-            incidentUrl,
-          });
+          continue;
         }
-      } else if (channel.type === "DISCORD_WEBHOOK") {
-        if (!isValidDiscordWebhookUrl(channel.destination)) {
-          throw new Error("Invalid Discord webhook URL");
-        }
-        await sendDiscordWebhook({
-          webhookUrl: channel.destination,
-          title: kind === "resolved" ? `Recovered: ${incident.title}` : incident.title,
-          description: incident.summary,
-          color: kind === "resolved" ? 0x3dd68c : 0xff5a36,
-          url: incidentUrl,
-          fields: [
-            { name: "Site", value: site?.name ?? "Site", inline: true },
-            { name: "Severity", value: incident.severity, inline: true },
-            { name: "Evidence", value: evidence.slice(0, 4).join("\n") || "See incident" },
-          ],
+
+        await db.insert(alertDeliveries).values({
+          id: newId(),
+          organizationId,
+          channelId: channel.id,
+          incidentId,
+          type: kind,
+          status: "sent",
+          createdAt: new Date(),
         });
-      } else {
-        continue;
-      }
-      await db.insert(alertDeliveries).values({
-        id: newId(),
-        organizationId,
-        channelId: channel.id,
-        incidentId,
-        type: kind,
-        status: "sent",
-        createdAt: new Date(),
-      });
-    } catch (error) {
-      await db.insert(alertDeliveries).values({
-        id: newId(),
-        organizationId,
-        channelId: channel.id,
-        incidentId,
-        type: kind,
-        status: "failed",
-        errorMessage: error instanceof Error ? error.message.slice(0, 512) : "send failed",
-        createdAt: new Date(),
-      });
-      if (channel.type === "EMAIL") {
-        emailError = error instanceof Error ? error : new Error("send failed");
-      } else {
-        logger.warn({ channelId: channel.id, kind }, "discord webhook delivery failed");
+      } catch (error) {
+        await db.insert(alertDeliveries).values({
+          id: newId(),
+          organizationId,
+          channelId: channel.id,
+          incidentId,
+          type: kind,
+          status: "failed",
+          errorMessage: error instanceof Error ? error.message.slice(0, 512) : "send failed",
+          createdAt: new Date(),
+        });
+        if (channel.type === "EMAIL") {
+          emailError = error instanceof Error ? error : new Error("send failed");
+        } else {
+          logger.warn({ channelId: channel.id, kind }, "discord webhook delivery failed");
+        }
       }
     }
   }
 
-  if (
+  const canNotifyPublicSubscribers =
     emailEnabled() &&
-    org.statusPageEnabled &&
-    org.statusPageAllowSubscribe &&
-    org.statusPageSlug
-  ) {
+    Boolean(site.statusPageVisible) &&
+    Boolean(org.statusPageEnabled) &&
+    Boolean(org.statusPageAllowSubscribe) &&
+    Boolean(org.statusPageSlug);
+
+  if (canNotifyPublicSubscribers) {
     const subscribers = await db
       .select()
       .from(statusPageSubscribers)
@@ -274,7 +288,7 @@ export async function processEmailAlert(incidentId: string, organizationId: stri
           await sendStatusRecoverySubscriberEmail({
             to: subscriber.email,
             organizationName: org.name,
-            siteName: site?.name ?? "Site",
+            siteName: site.name,
             title: incident.title,
             statusUrl,
             unsubscribeUrl,
@@ -283,7 +297,7 @@ export async function processEmailAlert(incidentId: string, organizationId: stri
           await sendStatusIncidentSubscriberEmail({
             to: subscriber.email,
             organizationName: org.name,
-            siteName: site?.name ?? "Site",
+            siteName: site.name,
             title: incident.title,
             summary: incident.summary,
             statusUrl,
