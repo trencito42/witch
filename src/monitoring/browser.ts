@@ -43,8 +43,12 @@ async function getBrowser() {
   if (!browserPromise) {
     const env = getEnv();
     const wrapperPath = path.resolve(process.cwd(), "scripts/chrome-wrapper.sh");
+    const productionWrapperReady =
+      fs.existsSync(wrapperPath) &&
+      fs.existsSync("/home/witch/browser-libs/extracted/usr/lib/x86_64-linux-gnu") &&
+      fs.existsSync("/home/witch/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome");
     const executablePath =
-      env.PLAYWRIGHT_CHROMIUM_PATH || (fs.existsSync(wrapperPath) ? wrapperPath : undefined);
+      env.PLAYWRIGHT_CHROMIUM_PATH || (productionWrapperReady ? wrapperPath : undefined);
 
     browserPromise = chromium
       .launch({
