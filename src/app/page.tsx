@@ -124,74 +124,63 @@ export default function HomePage() {
       className={"landing-page " + fontSerif.variable + " " + fontSans.variable + " overflow-x-clip"}
       style={{ backgroundColor: "var(--landing-bg)", color: "var(--landing-text)" }}
     >
-      <header className="sticky top-0 z-50 border-b border-white/[0.055] bg-[#07070a]/90 text-[#f3eef5] backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
+      <header className="absolute inset-x-0 top-0 z-50 text-[#f3eef5] safe-area-top">
+        <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:h-20 sm:px-8 lg:px-10">
           <Link href="/" aria-label="Witch home" className="inline-flex min-h-11 items-center text-[#f3eef5]">
             <Wordmark className="text-[#f3eef5]" />
           </Link>
 
-          <nav aria-label="Primary navigation" className="flex items-center gap-1 text-[14px] sm:gap-3">
-            <a href="#how" className="hidden min-h-11 items-center px-2 text-[#aca2b2] transition-colors hover:text-[#f3eef5] sm:inline-flex">
+          <nav aria-label="Primary navigation" className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-7 text-[13px] text-[#d7ccda] lg:flex">
+            <a href="#how" className="transition-colors hover:text-white">
               How it works
             </a>
-            <a href="#pricing" className="hidden min-h-11 items-center px-2 text-[#aca2b2] transition-colors hover:text-[#f3eef5] md:inline-flex">
+            <a href="#incident" className="transition-colors hover:text-white">
+              Monitoring
+            </a>
+            <a href="#pricing" className="transition-colors hover:text-white">
+              Status pages
+            </a>
+            <a href="#pricing" className="transition-colors hover:text-white">
               Pricing
             </a>
-            <Link href="/login" className="hidden min-h-11 items-center px-2 text-[#aca2b2] transition-colors hover:text-[#f3eef5] sm:inline-flex">
+          </nav>
+
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Link href="/login" className="hidden min-h-11 items-center px-3 text-[13px] text-[#d7ccda] transition-colors hover:text-white sm:inline-flex">
               Sign in
             </Link>
             <Link
               href="/signup"
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#eee8f0] px-5 text-[13px] font-semibold text-[#120f14] transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-white"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#f0eaf2] px-5 text-[13px] font-semibold text-[#120f14] transition-colors hover:bg-white"
             >
               Start free
             </Link>
-          </nav>
+          </div>
         </div>
       </header>
 
       <main>
-        <section className="relative isolate flex min-h-[calc(100svh-4rem)] items-center overflow-hidden bg-[#07070a] text-[#f3eef5]">
-          <div
-            className="pointer-events-none absolute inset-0 -z-30"
-            style={{
-              background:
-                "linear-gradient(180deg, #07070a 0%, #0b080e 46%, #120c18 100%)",
-            }}
-          />
-          <div
-            className="hero-atmosphere pointer-events-none absolute left-1/2 top-[42%] -z-20 h-[520px] w-[min(940px,120vw)] -translate-x-1/2 -translate-y-1/2 rounded-[50%] blur-[90px] sm:h-[610px] sm:blur-[120px]"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, rgba(145,95,170,.18) 0%, rgba(116,70,137,.11) 35%, rgba(7,7,10,0) 72%)",
-            }}
-          />
-          <div
-            className="pointer-events-none absolute left-1/2 top-[38%] -z-10 h-[280px] w-[min(680px,96vw)] -translate-x-1/2 -translate-y-1/2 rounded-[50%] blur-[72px] sm:h-[360px]"
-            style={{ background: "rgba(195,145,220,.07)" }}
-          />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-[#120c18]" />
-
-          <div className="mx-auto w-full max-w-6xl px-5 py-14 text-center sm:px-8 sm:py-20 lg:px-10">
+        <section className="witch-hero relative isolate grid place-items-center overflow-hidden text-[#f4eff5]">
+          <div className="relative z-10 mx-auto w-full max-w-6xl px-5 pb-14 pt-28 text-center sm:px-8 sm:pb-20 sm:pt-32 lg:-translate-y-[3vh] lg:px-10">
             <p className="hero-reveal landing-sans text-[11px] font-semibold uppercase tracking-[0.22em] text-[#aaa0b0] sm:text-[12px]">
               Browser monitoring beyond uptime
             </p>
-            <h1 className="hero-reveal landing-serif mx-auto mt-5 max-w-[960px] text-[2.5rem] font-medium leading-[1.01] tracking-[-0.042em] text-[#f3eef5] min-[390px]:text-[2.8rem] sm:mt-6 sm:text-6xl lg:text-[5.35rem]">
+            <h1 className="hero-reveal landing-serif mx-auto mt-5 max-w-[980px] text-[40px] font-medium leading-[0.98] tracking-[-0.045em] text-[#f5f0f6] min-[360px]:text-[43px] min-[390px]:text-[46px] min-[430px]:text-[48px] sm:mt-6 sm:text-[64px] lg:text-[82px]">
               Your site can be online
-              <span className="block text-[#b9aebe]">and completely broken.</span>
+              <span className="block text-[#d2c3d5]">and completely broken.</span>
             </h1>
-            <p className="hero-reveal landing-sans mx-auto mt-6 max-w-[670px] text-[16px] leading-7 text-[#aaa1ad] sm:mt-7 sm:text-[18px] sm:leading-8">
+            <p className="hero-reveal landing-sans mx-auto mt-6 max-w-[680px] text-[15px] leading-6 text-[#c3b8c7] min-[390px]:text-[16px] sm:mt-7 sm:text-[18px] sm:leading-8">
               Witch watches what users actually receive — from HTTP and TLS to real browser rendering, missing elements, and visual regressions.
             </p>
             <div className="hero-reveal mt-8 sm:mt-9">
               <Link
                 href="/signup"
-                className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#eee8f0] px-7 text-[14px] font-semibold text-[#120f14] shadow-[0_12px_42px_rgba(145,95,170,.12)] transition-[transform,background-color,box-shadow] hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_16px_50px_rgba(145,95,170,.2)]"
+                className="inline-flex min-h-12 w-full max-w-[290px] items-center justify-center rounded-full bg-[#f0eaf2] px-7 text-[14px] font-semibold text-[#120f14] shadow-[0_16px_46px_rgba(18,8,22,.2)] transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-white sm:w-auto sm:max-w-none"
               >
                 Monitor your first site
               </Link>
             </div>
-            <p className="hero-reveal mt-4 text-[12px] text-[#817784]">Free HTTP + TLS monitoring. No credit card.</p>
+            <p className="hero-reveal mt-4 text-[11px] text-[#9c909f] sm:text-[12px]">Free HTTP + TLS monitoring. No credit card.</p>
           </div>
         </section>
 
