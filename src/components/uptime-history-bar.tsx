@@ -6,14 +6,14 @@ import { cn } from "@/lib/cn";
 export interface DayUptime {
   dateStr: string; // "Sep 19, 2026"
   isoDate: string; // "2026-09-19"
-  status: "operational" | "degraded" | "down" | "paused";
+  status: "operational" | "degraded" | "down" | "paused" | "unknown";
   incidentCount: number;
   incidentSummary?: string;
 }
 
 interface UptimeHistoryBarProps {
   days: DayUptime[];
-  uptimePercentage: number;
+  uptimePercentage: number | null;
   className?: string;
 }
 
@@ -69,7 +69,7 @@ export function UptimeHistoryBar({
                   hoveredDay.status === "operational" && "bg-[var(--healthy)]",
                   hoveredDay.status === "degraded" && "bg-[var(--warning)]",
                   hoveredDay.status === "down" && "bg-[var(--critical)]",
-                  hoveredDay.status === "paused" && "bg-[var(--text-faint)]"
+                  hoveredDay.status === "paused" && "bg-[var(--text-faint)]",\n                  hoveredDay.status === "unknown" && "bg-[var(--border-strong)]/60"
                 )}
               />
               <span className="font-semibold text-[var(--text)]">{hoveredDay.dateStr}:</span>
@@ -90,7 +90,7 @@ export function UptimeHistoryBar({
           const isHealthy = day.status === "operational";
           const isDegraded = day.status === "degraded";
           const isDown = day.status === "down";
-          const isPaused = day.status === "paused";
+          const isPaused = day.status === "paused";\n          const isUnknown = day.status === "unknown";
 
           return (
             <div
@@ -101,7 +101,7 @@ export function UptimeHistoryBar({
                 isHealthy && "bg-[var(--healthy)]/70 hover:bg-[var(--healthy)] hover:scale-y-110",
                 isDegraded && "bg-[var(--warning)]/85 hover:bg-[var(--warning)] hover:scale-y-110",
                 isDown && "bg-[var(--critical)]/90 hover:bg-[var(--critical)] hover:scale-y-110",
-                isPaused && "bg-[var(--border-strong)]/40 hover:bg-[var(--border-strong)]"
+                isPaused && "bg-[var(--border-strong)]/40 hover:bg-[var(--border-strong)]",\n                isUnknown && "bg-[var(--surface-overlay)] hover:bg-[var(--border-strong)]/60"
               )}
             />
           );
