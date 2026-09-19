@@ -3,13 +3,13 @@ module.exports = {
     {
       name: "witch-web",
       script: "npm",
-      args: "run dev",
+      args: "start",
       cwd: "/home/witch/htdocs/witch.pw",
       autorestart: true,
       watch: false,
       max_memory_restart: "1G",
       env: {
-        NODE_ENV: "development",
+        NODE_ENV: "production",
         PORT: "3003",
       },
     },
