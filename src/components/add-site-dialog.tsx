@@ -109,10 +109,12 @@ export function AddSiteButton({
   browserMonitoring = true,
   className,
   children,
+  disabled = false,
 }: {
   browserMonitoring?: boolean;
   className?: string;
   children?: React.ReactNode;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
 
@@ -162,7 +164,7 @@ export function AddSiteCardButton({
           Add another site
         </span>
         <span className="text-[12px] text-[var(--text-muted)] mt-0.5">
-          Watch HTTP, browser &amp; visual diffs
+          {browserMonitoring ? "Watch HTTP, browser & visual diffs" : "Watch HTTP, TLS & latency"}
         </span>
       </button>
 
