@@ -46,7 +46,7 @@ export async function createSite(ctx: OrgContext, rawUrl: string, name?: string)
     name: siteName,
     url: normalized,
     normalizedUrl: normalized,
-    faviconUrl: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostnameFromUrl(normalized))}&sz=64`,
+    faviconUrl: new URL("/favicon.ico", normalized).toString(),
     status: "UNKNOWN",
     createdAt: now,
     updatedAt: now,

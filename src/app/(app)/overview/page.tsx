@@ -11,6 +11,7 @@ import {
   MetricCard,
 } from "@/components/ui";
 import { AddSiteButton, AddSiteCardButton } from "@/components/add-site-dialog";
+import { SiteFavicon } from "@/components/site-favicon";
 import { computeOrgHttpMetrics } from "@/features/reports/service";
 import { loadSiteListStats } from "@/features/sites/stats";
 import { isMonitoringStale } from "@/lib/monitor-freshness";
@@ -317,21 +318,12 @@ export default async function OverviewPage() {
                     <div>
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          {site.faviconUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={site.faviconUrl}
-                              alt=""
-                              width={20}
-                              height={20}
-                              className="rounded-xs shrink-0"
-                            />
-                          ) : (
-                            <Globe
-                              className="h-5 w-5 text-[var(--text-muted)] shrink-0"
-                              aria-hidden="true"
-                            />
-                          )}
+                          <SiteFavicon
+                            faviconUrl={site.faviconUrl}
+                            url={site.url}
+                            name={site.name}
+                            size={20}
+                          />
                           <div className="min-w-0">
                             <h3 className="text-[14px] font-medium text-[var(--text)] truncate">
                               {site.name}

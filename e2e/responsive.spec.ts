@@ -1,12 +1,14 @@
 import { test, expect } from "@playwright/test";
 
 const viewports = [
+  { width: 320, height: 700 },
+  { width: 360, height: 800 },
   { width: 375, height: 812 },
   { width: 390, height: 844 },
   { width: 430, height: 932 },
   { width: 768, height: 1024 },
   { width: 1024, height: 768 },
-  { width: 1440, height: 900 },
+  { width: 1440, height: 1000 },
 ];
 
 async function assertNoHorizontalOverflow(page: import("@playwright/test").Page) {
@@ -23,7 +25,8 @@ for (const viewport of viewports) {
     skipWithoutApp();
     await page.setViewportSize(viewport);
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /uptime tells you/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /your site can be online/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Monitor your first site" })).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await page.goto("/login");
     await expect(page.getByLabel(/email/i)).toBeVisible();

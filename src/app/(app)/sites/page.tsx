@@ -10,7 +10,8 @@ import {
   EmptyState,
 } from "@/components/ui";
 import { AddSiteButton } from "@/components/add-site-dialog";
-import { Globe, ChevronRight, Clock, Search } from "lucide-react";
+import { SiteFavicon } from "@/components/site-favicon";
+import { ChevronRight, Clock, Search } from "lucide-react";
 import { loadSiteListStats } from "@/features/sites/stats";
 import { siteWatchPresentation } from "@/lib/monitor-freshness";
 
@@ -156,12 +157,12 @@ function SiteTableRow({
     <tr className="hover:bg-[var(--bg-hover)] transition-colors group">
       <td className="py-3.5 px-4">
         <Link href={`/sites/${site.id}`} className="flex items-center gap-2.5">
-          {site.faviconUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={site.faviconUrl} alt="" width={18} height={18} className="rounded-xs shrink-0" />
-          ) : (
-            <Globe className="h-4 w-4 text-[var(--text-muted)] shrink-0" />
-          )}
+          <SiteFavicon
+            faviconUrl={site.faviconUrl}
+            url={site.url}
+            name={site.name}
+            size={18}
+          />
           <div className="min-w-0">
             <div className="font-medium text-[var(--text)] group-hover:text-white transition-colors">
               {site.name}
@@ -228,12 +229,12 @@ function SiteMobileCard({
       className="block p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] active:bg-[var(--bg-hover)] transition-colors min-w-0 overflow-hidden"
     >
       <div className="flex items-center gap-2 min-w-0 mb-1.5">
-        {site.faviconUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={site.faviconUrl} alt="" width={16} height={16} className="rounded-xs shrink-0" />
-        ) : (
-          <Globe className="h-4 w-4 text-[var(--text-muted)] shrink-0" />
-        )}
+        <SiteFavicon
+          faviconUrl={site.faviconUrl}
+          url={site.url}
+          name={site.name}
+          size={16}
+        />
         <span className="text-[15px] font-medium text-[var(--text)] truncate">
           {site.name}
         </span>

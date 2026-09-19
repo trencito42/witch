@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, CircleAlert, Eye, Globe2, ShieldCheck, Sparkles } from "lucide-react";
+import { Check, CircleAlert, Eye, Globe2, ShieldCheck } from "lucide-react";
 import { fontSans, fontSerif } from "@/app/fonts";
 import { Wordmark } from "@/components/logo";
 
@@ -72,110 +72,6 @@ const plans = [
   },
 ];
 
-function BrowserDemo() {
-  return (
-    <div className="overflow-hidden rounded-[22px] border border-white/10 bg-[#0d0a10] shadow-[0_32px_90px_rgba(0,0,0,.42)]">
-      <div className="flex items-center justify-between border-b border-white/8 px-3 py-3 sm:px-5">
-        <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-          <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
-          <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
-        </div>
-        <div className="mx-3 min-w-0 flex-1 sm:max-w-md">
-          <div className="truncate rounded-full bg-white/[0.055] px-3 py-1.5 text-center font-mono text-[9px] text-white/38 sm:text-[10px]">
-            shop.example.com/checkout
-          </div>
-        </div>
-        <span className="hidden font-mono text-[10px] text-white/30 sm:block">390px</span>
-      </div>
-
-      <div className="grid lg:grid-cols-[1.18fr_.82fr]">
-        <div className="relative min-h-[360px] overflow-hidden border-b border-white/8 bg-[#f2eee7] p-4 text-[#1b171b] sm:min-h-[430px] sm:p-7 lg:border-b-0 lg:border-r">
-          <div className="mx-auto max-w-md">
-            <div className="flex items-center justify-between">
-              <span className="font-serif text-[18px] font-semibold tracking-tight">Northstar</span>
-              <div className="flex gap-3 text-[9px] text-black/40 sm:text-[10px]">
-                <span>Shop</span>
-                <span>Account</span>
-              </div>
-            </div>
-
-            <div className="mt-10 sm:mt-14">
-              <span className="text-[10px] uppercase tracking-[.16em] text-black/40">Order summary</span>
-              <h3 className="mt-2 font-serif text-3xl tracking-tight sm:text-4xl">Almost yours.</h3>
-              <p className="mt-3 max-w-xs text-[12px] leading-5 text-black/45 sm:text-[13px]">
-                Shipping and payment loaded correctly. The final purchase control did not.
-              </p>
-
-              <div className="mt-8 space-y-3 rounded-2xl bg-white/70 p-4 sm:p-5">
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-black/45">Subtotal</span>
-                  <span>$89.00</span>
-                </div>
-                <div className="flex justify-between border-t border-black/8 pt-3 text-[11px]">
-                  <span className="text-black/45">Shipping</span>
-                  <span>Free</span>
-                </div>
-                <div className="flex justify-between border-t border-black/8 pt-3 text-[12px] font-semibold">
-                  <span>Total</span>
-                  <span>$89.00</span>
-                </div>
-              </div>
-
-              <div className="mt-5 flex min-h-12 items-center justify-center rounded-xl border border-dashed border-[#d14b62]/50 bg-[#d14b62]/5 px-3 text-center text-[11px] font-medium text-[#a62d44]">
-                Expected checkout button missing
-              </div>
-            </div>
-          </div>
-
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#f2eee7] to-transparent" />
-        </div>
-
-        <div className="bg-[#120d16] p-4 sm:p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="font-mono text-[9px] uppercase tracking-[.16em] text-white/35 sm:text-[10px]">Witch incident</p>
-              <h3 className="mt-2 text-[18px] font-medium text-white sm:text-[20px]">Checkout control missing</h3>
-            </div>
-            <span className="rounded-full bg-[#d14b62]/12 px-2 py-1 text-[9px] font-medium text-[#f18aa0] sm:text-[10px]">
-              HIGH
-            </span>
-          </div>
-
-          <div className="mt-6 space-y-0 border-y border-white/8 font-mono text-[10px] sm:text-[11px]">
-            <div className="flex items-center justify-between gap-4 py-3">
-              <span className="text-white/35">HTTP</span>
-              <span className="text-[#75d39b]">200 OK</span>
-            </div>
-            <div className="flex items-center justify-between gap-4 border-t border-white/8 py-3">
-              <span className="text-white/35">TLS</span>
-              <span className="text-[#75d39b]">Valid</span>
-            </div>
-            <div className="flex items-center justify-between gap-4 border-t border-white/8 py-3">
-              <span className="text-white/35">DOM</span>
-              <span className="text-[#f18aa0]">button.checkout missing</span>
-            </div>
-            <div className="flex items-center justify-between gap-4 border-t border-white/8 py-3">
-              <span className="text-white/35">Viewport</span>
-              <span className="text-white/70">Mobile · 390px</span>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-xl bg-white/[0.045] p-4">
-            <div className="flex items-center gap-2 text-[11px] font-medium text-white/80">
-              <Sparkles className="h-3.5 w-3.5 text-[#c9a5d7]" />
-              Likely cause
-            </div>
-            <p className="mt-2 text-[11px] leading-5 text-white/45 sm:text-[12px]">
-              The page and payment summary rendered, but the expected purchase control never appeared after stabilization.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ComparisonDemo() {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -228,25 +124,25 @@ export default function HomePage() {
       className={"landing-page " + fontSerif.variable + " " + fontSans.variable + " overflow-x-clip"}
       style={{ backgroundColor: "var(--landing-bg)", color: "var(--landing-text)" }}
     >
-      <header className="sticky top-0 z-50 border-b border-white/[0.04] bg-[var(--landing-bg)]/88 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:h-16 sm:px-6 lg:px-10">
-          <Link href="/" aria-label="Witch home" className="shrink-0 text-[var(--landing-text)]">
-            <Wordmark />
+      <header className="sticky top-0 z-50 border-b border-white/[0.055] bg-[#07070a]/90 text-[#f3eef5] backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
+          <Link href="/" aria-label="Witch home" className="inline-flex min-h-11 items-center text-[#f3eef5]">
+            <Wordmark className="text-[#f3eef5]" />
           </Link>
 
-          <nav className="flex items-center gap-1.5 text-[13px] sm:gap-4 sm:text-[14px]">
-            <a href="#how" className="hidden text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)] md:inline">
+          <nav aria-label="Primary navigation" className="flex items-center gap-1 text-[14px] sm:gap-3">
+            <a href="#how" className="hidden min-h-11 items-center px-2 text-[#aca2b2] transition-colors hover:text-[#f3eef5] sm:inline-flex">
               How it works
             </a>
-            <a href="#pricing" className="hidden text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)] md:inline">
+            <a href="#pricing" className="hidden min-h-11 items-center px-2 text-[#aca2b2] transition-colors hover:text-[#f3eef5] md:inline-flex">
               Pricing
             </a>
-            <Link href="/login" className="hidden text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)] sm:inline">
+            <Link href="/login" className="hidden min-h-11 items-center px-2 text-[#aca2b2] transition-colors hover:text-[#f3eef5] sm:inline-flex">
               Sign in
             </Link>
             <Link
               href="/signup"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-[var(--landing-text)] px-3.5 font-semibold text-[var(--landing-bg)] sm:px-4"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#eee8f0] px-5 text-[13px] font-semibold text-[#120f14] transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-white"
             >
               Start free
             </Link>
@@ -255,56 +151,47 @@ export default function HomePage() {
       </header>
 
       <main>
-        <section className="relative isolate">
+        <section className="relative isolate flex min-h-[calc(100svh-4rem)] items-center overflow-hidden bg-[#07070a] text-[#f3eef5]">
           <div
-            className="pointer-events-none absolute inset-x-0 top-[-80px] -z-10 h-[620px] sm:h-[760px]"
+            className="pointer-events-none absolute inset-0 -z-30"
             style={{
               background:
-                "radial-gradient(circle at 50% 16%, rgba(144,95,169,.22), transparent 34%), radial-gradient(circle at 16% 24%, rgba(82,56,96,.13), transparent 28%)",
+                "linear-gradient(180deg, #07070a 0%, #0b080e 46%, #120c18 100%)",
             }}
           />
+          <div
+            className="hero-atmosphere pointer-events-none absolute left-1/2 top-[42%] -z-20 h-[520px] w-[min(940px,120vw)] -translate-x-1/2 -translate-y-1/2 rounded-[50%] blur-[90px] sm:h-[610px] sm:blur-[120px]"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, rgba(145,95,170,.18) 0%, rgba(116,70,137,.11) 35%, rgba(7,7,10,0) 72%)",
+            }}
+          />
+          <div
+            className="pointer-events-none absolute left-1/2 top-[38%] -z-10 h-[280px] w-[min(680px,96vw)] -translate-x-1/2 -translate-y-1/2 rounded-[50%] blur-[72px] sm:h-[360px]"
+            style={{ background: "rgba(195,145,220,.07)" }}
+          />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-[#120c18]" />
 
-          <div className="mx-auto max-w-7xl px-4 pb-16 pt-14 text-center sm:px-6 sm:pb-24 sm:pt-24 lg:px-10 lg:pt-28">
-            <p className="landing-sans text-[10px] font-medium uppercase tracking-[0.2em] text-[var(--landing-text-muted)] sm:text-[11px]">
+          <div className="mx-auto w-full max-w-6xl px-5 py-14 text-center sm:px-8 sm:py-20 lg:px-10">
+            <p className="hero-reveal landing-sans text-[11px] font-semibold uppercase tracking-[0.22em] text-[#aaa0b0] sm:text-[12px]">
               Browser monitoring beyond uptime
             </p>
-
-            <h1 className="landing-serif mx-auto mt-5 max-w-[980px] text-[clamp(2.5rem,10vw,5.2rem)] font-medium leading-[.98] tracking-[-0.045em] text-[var(--landing-text)]">
+            <h1 className="hero-reveal landing-serif mx-auto mt-5 max-w-[960px] text-[2.5rem] font-medium leading-[1.01] tracking-[-0.042em] text-[#f3eef5] min-[390px]:text-[2.8rem] sm:mt-6 sm:text-6xl lg:text-[5.35rem]">
               Your site can be online
-              <span className="block text-[var(--landing-text-muted)]">and completely broken.</span>
+              <span className="block text-[#b9aebe]">and completely broken.</span>
             </h1>
-
-            <p className="landing-sans mx-auto mt-6 max-w-2xl text-[15px] leading-6 text-[var(--landing-text-muted)] sm:text-[18px] sm:leading-7">
-              Witch watches what people actually receive. HTTP and TLS first, then real Chromium renders to catch missing controls,
-              broken mobile layouts, browser errors, and visual regressions.
+            <p className="hero-reveal landing-sans mx-auto mt-6 max-w-[670px] text-[16px] leading-7 text-[#aaa1ad] sm:mt-7 sm:text-[18px] sm:leading-8">
+              Witch watches what users actually receive — from HTTP and TLS to real browser rendering, missing elements, and visual regressions.
             </p>
-
-            <div className="mx-auto mt-8 flex max-w-sm flex-col gap-2.5 sm:max-w-none sm:flex-row sm:justify-center">
+            <div className="hero-reveal mt-8 sm:mt-9">
               <Link
                 href="/signup"
-                className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--landing-text)] px-6 text-[14px] font-semibold text-[var(--landing-bg)] sm:w-auto"
+                className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#eee8f0] px-7 text-[14px] font-semibold text-[#120f14] shadow-[0_12px_42px_rgba(145,95,170,.12)] transition-[transform,background-color,box-shadow] hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_16px_50px_rgba(145,95,170,.2)]"
               >
                 Monitor your first site
               </Link>
-              <a
-                href="#incident"
-                className="inline-flex min-h-12 w-full items-center justify-center rounded-full px-5 text-[14px] font-medium text-[var(--landing-text-muted)] transition-colors hover:text-[var(--landing-text)] sm:w-auto"
-              >
-                See what Witch catches
-              </a>
             </div>
-
-            <p className="mt-3 text-[11px] text-[var(--landing-text-muted)]">Free HTTP + TLS monitoring. No credit card.</p>
-
-            <div className="mx-auto mt-12 max-w-6xl text-left sm:mt-16 lg:mt-20">
-              <div className="mb-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 font-mono text-[9px] text-[var(--landing-text-muted)] sm:gap-x-5 sm:text-[10px]">
-                <span>HTTP 200 ✓</span>
-                <span className="text-[#e58499]">Checkout missing</span>
-                <span>Mobile · 390px</span>
-                <span className="hidden sm:inline">Evidence attached</span>
-              </div>
-              <BrowserDemo />
-            </div>
+            <p className="hero-reveal mt-4 text-[12px] text-[#817784]">Free HTTP + TLS monitoring. No credit card.</p>
           </div>
         </section>
 
