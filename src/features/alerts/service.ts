@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   aiUsages,
@@ -9,17 +9,15 @@ import {
   organizations,
   sites,
   statusPageSubscribers,
+  subscriptions,
 } from "@/db/schema";
 import { analyzeIncidentSafe } from "@/ai/provider";
 import { newId } from "@/lib/ids";
-import { appUrl } from "@/lib/env";
+import { appUrl, emailEnabled, getEnv } from "@/lib/env";
 import { canUseAiAnalysis, canUseEmailAlerts, getEffectivePlan } from "@/lib/plans";
-import { subscriptions } from "@/db/schema";
 import { sendIncidentAlertEmail, sendRecoveryAlertEmail, sendStatusIncidentSubscriberEmail, sendStatusRecoverySubscriberEmail } from "@/emails/send";
-import { emailEnabled } from "@/lib/env";
 import { isValidDiscordWebhookUrl, sendDiscordWebhook } from "@/lib/discord";
 import { logger } from "@/lib/logger";
-import { getEnv } from "@/lib/env";
 import { statusSubscriptionToken } from "@/lib/crypto";
 
 const SEVERITY_RANK: Record<string, number> = {
@@ -255,7 +253,7 @@ export async function processEmailAlert(incidentId: string, organizationId: stri
       .where(
         and(
           eq(statusPageSubscribers.organizationId, organizationId),
-          sql`${statusPageSubscribers.confirmedAt} IS NOT NULL`,
+          isNotNull(statusPageSubscribers.confirmedAt),
         ),
       );
 
