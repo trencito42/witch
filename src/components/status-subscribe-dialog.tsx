@@ -20,7 +20,8 @@ export function StatusSubscribeDialog({
   const [open, setOpen] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [loading, setLoading] = React.useState(false);
-  const [success, setSuccess] = React.useState(false);\n  const [successMessage, setSuccessMessage] = React.useState("Check your inbox to confirm the subscription.");
+  const [success, setSuccess] = React.useState(false);
+  const [successMessage, setSuccessMessage] = React.useState("Check your inbox to confirm the subscription.");
   const [error, setError] = React.useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
