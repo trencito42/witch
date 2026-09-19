@@ -427,7 +427,7 @@ export default function HomePage() {
       <footer className="border-t border-white/[0.06] py-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 text-[12px] text-[var(--landing-text-muted)] sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
           <Link href="/" aria-label="Witch home" className="text-[var(--landing-text)]">
-            <Wordmark />
+            <Wordmark className="text-[var(--landing-text)]" />
           </Link>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             <a href="#how">How it works</a>

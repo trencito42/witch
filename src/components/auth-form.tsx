@@ -48,14 +48,14 @@ export function AuthForm({
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-12 sm:py-16 overflow-hidden">
+    <div className="auth-stage relative min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-12 sm:py-16 overflow-hidden">
       {/* Background subtle radial illumination */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center -z-10">
+      <div className="auth-ambient pointer-events-none absolute inset-0 flex items-center justify-center -z-10">
         <div className="w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(187,242,176,0.04)_0%,transparent_70%)] blur-2xl" />
       </div>
 
-      <div className="w-full max-w-[420px]">
-        <div className="relative rounded-2xl border border-[var(--border)]/80 bg-[var(--surface-1)]/70 p-7 sm:p-9 shadow-2xl backdrop-blur-md overflow-hidden">
+      <div className="auth-panel-shell w-full max-w-[420px]">
+        <div className="auth-panel relative rounded-2xl border border-[var(--border)]/80 bg-[var(--surface-1)]/70 p-7 sm:p-9 shadow-2xl backdrop-blur-md overflow-hidden">
           {/* Subtle top spectral edge */}
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[var(--accent)]/40 to-transparent" />
 

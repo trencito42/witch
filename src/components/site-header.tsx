@@ -13,7 +13,7 @@ export async function SiteHeader({
   return (
     <header
       className={`sticky top-0 z-40 pt-[env(safe-area-inset-top,0px)] ${
-        current === "home"
+        current === "home" || current === "signup"
           ? "border-b border-white/[0.06] bg-[var(--bg)]/35 backdrop-blur-sm"
           : "border-b border-[var(--border)]/80 bg-[var(--surface-0)]/85 backdrop-blur-md"
       }`}

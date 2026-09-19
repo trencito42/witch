@@ -12,9 +12,9 @@ export default async function SignupPage({
     redirect("/signup");
   }
   return (
-    <>
+    <div className="auth-landing min-h-dvh">
       <SiteHeader current="signup" />
       <AuthForm mode="signup" />
-    </>
+    </div>
   );
 }

@@ -243,6 +243,48 @@
   min-height: 100vh;
 }
 
+.auth-landing {
+  --bg: #070709;
+  --surface: #121015;
+  --surface-raised: #1a161d;
+  --surface-0: #070709;
+  --surface-1: #121015;
+  --surface-2: #1a161d;
+  --surface-3: #241d28;
+  --border: #2e2732;
+  --border-strong: #43394a;
+  --text: #ede6da;
+  --text-muted: #a79da6;
+  --text-faint: #7e737d;
+  --accent: #f26a2e;
+  --accent-strong: #ff7e47;
+  --accent-foreground: #ffffff;
+  color: var(--text);
+  color-scheme: dark;
+  background:
+    linear-gradient(180deg, rgba(7, 7, 9, 0) 0%, rgba(7, 7, 9, 0.18) 48%, #070709 100%),
+    linear-gradient(112deg, #291831 0%, #543064 42%, #35203f 72%, #160f1a 100%);
+}
+
+.auth-landing .auth-stage {
+  min-height: calc(100dvh - 3.5rem);
+  padding-block: clamp(2.5rem, 7vh, 5.5rem);
+}
+
+.auth-landing .auth-ambient {
+  display: none;
+}
+
+.auth-landing .auth-panel-shell {
+  max-width: 30rem;
+}
+
+.auth-landing .auth-panel {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(12, 10, 14, 0.82);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.34);
+}
+
 .landing-serif {
   font-family: var(--font-serif), Georgia, Cambria, "Times New Roman", Times, serif;
 }
