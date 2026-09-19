@@ -26,7 +26,6 @@ import {
 } from "@/components/ui";
 import { RunCheckButton } from "@/components/run-check-button";
 import { CompareSlider } from "@/components/compare-slider";
-import { SiteFavicon } from "@/components/site-favicon";
 import { SiteMonitorRow } from "@/components/site-monitor-row";
 import { AddAssertionForm } from "@/components/add-assertion-form";
 import {
@@ -40,6 +39,7 @@ import { DeleteSiteButton } from "@/components/delete-site-button";
 import { computeSiteMetrics } from "@/features/reports/service";
 import { INTERVAL_OPTIONS } from "@/lib/constants";
 import {
+  Globe,
   ExternalLink,
   Pause,
   Play,
@@ -250,13 +250,18 @@ export default async function SitePage({
       <div className="sticky top-14 md:top-0 z-20 bg-[var(--surface)]/95 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-4 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1 min-w-0">
           <div className="flex items-center gap-3 min-w-0">
-            <SiteFavicon
-              faviconUrl={site.faviconUrl}
-              url={site.url}
-              name={site.name}
-              size={24}
-              className="rounded-md"
-            />
+            {site.faviconUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={site.faviconUrl}
+                alt=""
+                width={24}
+                height={24}
+                className="rounded-md shrink-0"
+              />
+            ) : (
+              <Globe className="h-5 w-5 text-[var(--text-muted)] shrink-0" />
+            )}
             <h1 className="text-xl sm:text-2xl font-medium tracking-tight text-[var(--text)] truncate app-heading">
               {site.name}
             </h1>

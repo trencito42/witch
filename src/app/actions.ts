@@ -319,9 +319,6 @@ export async function actionUpdateStatusPage(formData: FormData) {
     })
     .where(eq(organizations.id, ctx.organizationId));
   revalidatePath("/settings");
-  if (statusPageSlug) {
-    revalidatePath(`/status/${statusPageSlug}`);
-  }
 }
 
 export async function actionSubscribeStatusPage(formData: FormData) {

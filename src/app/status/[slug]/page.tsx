@@ -5,12 +5,11 @@ import { db } from "@/db";
 import { incidents, monitorChecks, monitors, organizations, sites, subscriptions } from "@/db/schema";
 import { StatusBadge, Badge } from "@/components/ui";
 import { Wordmark } from "@/components/logo";
-import { ShieldCheck, Clock, ExternalLink } from "lucide-react";
+import { Globe, ShieldCheck, Clock, ExternalLink } from "lucide-react";
 import { UptimeHistoryBar, type DayUptime } from "@/components/uptime-history-bar";
 import { StatusSubscribeDialog } from "@/components/status-subscribe-dialog";
 import { emailEnabled } from "@/lib/env";
 import { canUseEmailAlerts, getEffectivePlan } from "@/lib/plans";
-import { SiteFavicon } from "@/components/site-favicon";
 
 type DailyHttpCheck = {
   siteId: string;
@@ -331,7 +330,7 @@ export default async function StatusPage({
             </span>
           </div>
 
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] divide-y divide-[var(--border)] [&>*:first-child]:rounded-t-2xl [&>*:last-child]:rounded-b-2xl shadow-xs">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] divide-y divide-[var(--border)] overflow-hidden shadow-xs">
             {orgSites.length === 0 ? (
               <div className="p-10 text-center text-[13px] text-[var(--text-muted)]">
                 No services are currently set to public visibility.
@@ -369,13 +368,8 @@ export default async function StatusPage({
                   <div key={site.id} className="p-5 sm:p-6 space-y-4 hover:bg-[var(--surface-overlay)]/40 transition-colors">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-[var(--surface-overlay)] border border-[var(--border)] flex items-center justify-center shrink-0 overflow-hidden">
-                          <SiteFavicon
-                            faviconUrl={site.faviconUrl}
-                            url={site.url}
-                            name={site.name}
-                            size={20}
-                          />
+                        <div className="w-9 h-9 rounded-xl bg-[var(--surface-overlay)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] shrink-0">
+                          <Globe className="w-4 h-4" />
                         </div>
                         <div>
                           <h3 className="text-[15px] font-medium text-[var(--text)]">

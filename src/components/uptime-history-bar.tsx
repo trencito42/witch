@@ -23,10 +23,7 @@ export function UptimeHistoryBar({
   className,
 }: UptimeHistoryBarProps) {
   const [hoveredDay, setHoveredDay] = React.useState<DayUptime | null>(null);
-  const [tooltipState, setTooltipState] = React.useState<{
-    x: number;
-    arrowX: number;
-  } | null>(null);
+  const [tooltipPos, setTooltipPos] = React.useState<{ x: number } | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   const handleMouseEnter = (day: DayUptime, e: React.MouseEvent<HTMLDivElement>) => {
@@ -34,23 +31,13 @@ export function UptimeHistoryBar({
     if (containerRef.current) {
       const containerRect = containerRef.current.getBoundingClientRect();
       const targetRect = e.currentTarget.getBoundingClientRect();
-      const relativeX = targetRect.left - containerRect.left + targetRect.width / 2;
-
-      // Estimated half-width of tooltip is ~110px
-      const halfWidth = 110;
-      const minX = halfWidth;
-      const maxX = Math.max(minX, containerRect.width - halfWidth);
-      const clampedX = Math.max(minX, Math.min(relativeX, maxX));
-
-      // Arrow offset relative to tooltip center
-      const arrowX = relativeX - clampedX;
-      setTooltipState({ x: clampedX, arrowX });
+      setTooltipPos({ x: targetRect.left - containerRect.left + targetRect.width / 2 });
     }
   };
 
   const handleMouseLeave = () => {
     setHoveredDay(null);
-    setTooltipState(null);
+    setTooltipPos(null);
   };
 
   const tooltipText = (day: DayUptime) => {
@@ -62,58 +49,27 @@ export function UptimeHistoryBar({
 
   return (
     <div className={cn("space-y-2 select-none", className)}>
-      {/* Top row: Smoothly transitions between "90-Day History" and the hovered day's details */}
-      <div className="flex items-center justify-between text-[12px] min-h-[22px]">
-        <div className="flex-1 min-w-0 pr-3">
-          {hoveredDay ? (
-            <div className="flex items-center gap-1.5 text-[var(--text)] animate-in fade-in duration-100 min-w-0">
-              <span
-                className={cn(
-                  "h-2 w-2 rounded-full shrink-0",
-                  hoveredDay.status === "operational" && "bg-[var(--healthy)]",
-                  hoveredDay.status === "degraded" && "bg-[var(--warning)]",
-                  hoveredDay.status === "down" && "bg-[var(--critical)]",
-                  hoveredDay.status === "paused" && "bg-[var(--text-faint)]",
-                  hoveredDay.status === "unknown" && "bg-[var(--border-strong)]/60"
-                )}
-              />
-              <span className="font-semibold shrink-0">{hoveredDay.dateStr}:</span>
-              <span className="text-[var(--text-muted)] truncate">
-                {hoveredDay.incidentCount > 0
-                  ? hoveredDay.incidentSummary || `${hoveredDay.incidentCount} incident(s)`
-                  : hoveredDay.status === "paused"
-                  ? "Monitoring paused"
-                  : hoveredDay.status === "unknown"
-                  ? "No HTTP monitoring data"
-                  : "No incidents reported"}
-              </span>
-            </div>
-          ) : (
-            <span className="text-[var(--text-muted)] font-medium">90-Day History</span>
-          )}
-        </div>
-
-        <span className="font-mono font-medium text-[var(--text)] tabular-nums shrink-0">
-          {uptimePercentage === null ? "No data" : `${uptimePercentage.toFixed(2)}% uptime`}
+      <div className="flex items-center justify-between text-[12px]">
+        <span className="text-[var(--text-muted)] font-medium">90-Day HTTP History</span>
+        <span className="font-mono font-medium text-[var(--text)] tabular-nums">
+          {uptimePercentage === null ? "No data" : uptimePercentage.toFixed(2) + "% uptime"}
         </span>
       </div>
 
-      {/* Segments container with ample clearance for floating tooltip */}
       <div
         ref={containerRef}
-        className="relative flex items-center gap-[2px] sm:gap-[3px] h-8 sm:h-9 w-full pt-1"
+        className="relative flex items-center gap-[2px] sm:gap-[3px] h-8 sm:h-9 w-full"
         onMouseLeave={handleMouseLeave}
       >
-        {/* Hover Tooltip (Clamped, will never bleed outside card boundaries) */}
-        {hoveredDay && tooltipState && (
+        {hoveredDay && tooltipPos && (
           <div
-            className="absolute bottom-full mb-2 z-40 pointer-events-none -translate-x-1/2 whitespace-nowrap rounded-lg border border-[var(--border-strong)] bg-[var(--surface-overlay)] px-3 py-1.5 text-[11px] shadow-xl animate-in fade-in zoom-in-95 duration-100"
-            style={{ left: `${tooltipState.x}px` }}
+            className="absolute -top-12 z-30 pointer-events-none -translate-x-1/2 whitespace-nowrap rounded-lg border border-[var(--border-strong)] bg-[var(--surface-overlay)] px-2.5 py-1 text-[11px] shadow-lg animate-in fade-in zoom-in-95 duration-100"
+            style={{ left: tooltipPos.x + "px" }}
           >
             <div className="flex items-center gap-1.5">
               <span
                 className={cn(
-                  "h-1.5 w-1.5 rounded-full shrink-0",
+                  "h-1.5 w-1.5 rounded-full",
                   hoveredDay.status === "operational" && "bg-[var(--healthy)]",
                   hoveredDay.status === "degraded" && "bg-[var(--warning)]",
                   hoveredDay.status === "down" && "bg-[var(--critical)]",
@@ -124,13 +80,7 @@ export function UptimeHistoryBar({
               <span className="font-semibold text-[var(--text)]">{hoveredDay.dateStr}:</span>
               <span className="text-[var(--text-muted)]">{tooltipText(hoveredDay)}</span>
             </div>
-            {/* Arrow directly pointing to the segment */}
-            <div
-              className="absolute -bottom-1 h-2 w-2 rotate-45 border-r border-b border-[var(--border-strong)] bg-[var(--surface-overlay)]"
-              style={{
-                left: `calc(50% + ${tooltipState.arrowX}px - 4px)`,
-              }}
-            />
+            <div className="absolute left-1/2 -bottom-1 h-2 w-2 -translate-x-1/2 rotate-45 border-r border-b border-[var(--border-strong)] bg-[var(--surface-overlay)]" />
           </div>
         )}
 

@@ -23,7 +23,6 @@ export type BrowserCheckResult = {
   errorMessage: string | null;
   finalUrl: string | null;
   pageTitle: string | null;
-  faviconUrl?: string | null;
   screenshot: Buffer | null;
   consoleErrors: string[];
   pageErrors: string[];
@@ -290,14 +289,6 @@ export async function runBrowserCheck(input: {
       errorMessage: screenshotError,
       finalUrl: page.url(),
       pageTitle: await page.title(),
-      faviconUrl: await page
-        .evaluate(() => {
-          const el = document.querySelector<HTMLLinkElement>(
-            'link[rel*="icon"], link[rel="apple-touch-icon"]'
-          );
-          return el ? el.href : null;
-        })
-        .catch(() => null),
       screenshot,
       consoleErrors: unique(consoleErrors.concat(pageErrors)),
       pageErrors,

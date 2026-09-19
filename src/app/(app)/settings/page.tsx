@@ -15,7 +15,6 @@ import {
   Tabs,
   Badge,
 } from "@/components/ui";
-import { SettingsForm, SaveButton } from "@/components/settings-form";
 import {
   actionChangePassword,
   actionCheckout,
@@ -118,12 +117,7 @@ export default async function SettingsPage({
               </p>
             </div>
 
-            <SettingsForm
-              action={actionRenameWorkspace}
-              successTitle="Workspace updated"
-              successDescription="Your workspace profile has been saved."
-              className="space-y-4"
-            >
+            <form action={actionRenameWorkspace} className="space-y-4">
               <div>
                 <Label htmlFor="org-name">Workspace Name</Label>
                 <Input id="org-name" name="name" defaultValue={org?.name} required />
@@ -145,8 +139,10 @@ export default async function SettingsPage({
                 <Input id="timezone" name="timezone" defaultValue={org?.timezone ?? "UTC"} />
               </div>
 
-              <SaveButton label="Save changes" loadingLabel="Saving changes..." className="w-full sm:w-auto" />
-            </SettingsForm>
+              <Button type="submit" variant="primary" className="w-full sm:w-auto">
+                Save changes
+              </Button>
+            </form>
           </section>
 
           {/* CREATE NEW WORKSPACE */}
@@ -184,12 +180,7 @@ export default async function SettingsPage({
               </p>
             </div>
 
-            <SettingsForm
-              action={actionUpdateAlertSettings}
-              successTitle="Alert settings saved"
-              successDescription="Your notification preferences have been updated."
-              className="p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] space-y-4"
-            >
+            <form action={actionUpdateAlertSettings} className="p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] space-y-4">
 
               <div className="divide-y divide-[var(--border)]">
                 <SwitchRow
@@ -230,9 +221,11 @@ export default async function SettingsPage({
               </div>
 
               <div className="pt-2">
-                <SaveButton label="Save notification triggers" loadingLabel="Saving triggers..." className="w-full sm:w-auto" />
+                <Button type="submit" variant="primary" size="sm" className="w-full sm:w-auto">
+                  Save notification triggers
+                </Button>
               </div>
-            </SettingsForm>
+            </form>
           </section>
 
           {/* DISCORD DESTINATIONS */}
@@ -361,12 +354,7 @@ export default async function SettingsPage({
             </p>
           </div>
 
-          <SettingsForm
-            action={actionUpdateStatusPage}
-            successTitle="Status portal saved"
-            successDescription="Your status page settings and live portal have been updated."
-            className="p-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] space-y-5"
-          >
+          <form action={actionUpdateStatusPage} className="p-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] space-y-5">
 
             <SwitchRow
               title="Enable Public Status Page"
@@ -424,7 +412,9 @@ export default async function SettingsPage({
             />
 
             <div className="pt-2 flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3">
-              <SaveButton label="Save status page" loadingLabel="Saving status page..." className="w-full sm:w-auto" />
+              <Button type="submit" variant="primary" className="w-full sm:w-auto">
+                Save status page
+              </Button>
 
               {org?.statusPageEnabled && org.statusPageSlug && (
                 <Link
@@ -437,7 +427,7 @@ export default async function SettingsPage({
                 </Link>
               )}
             </div>
-          </SettingsForm>
+          </form>
         </div>
       )}
 
@@ -613,12 +603,7 @@ export default async function SettingsPage({
               </p>
             </div>
 
-            <SettingsForm
-              action={actionUpdateAccount}
-              successTitle="Profile updated"
-              successDescription="Your account details have been updated."
-              className="space-y-4"
-            >
+            <form action={actionUpdateAccount} className="space-y-4">
               <div>
                 <Label htmlFor="account-name">Your Full Name</Label>
                 <Input id="account-name" name="name" defaultValue={ctx.userName} required />
@@ -629,8 +614,10 @@ export default async function SettingsPage({
                 <Input value={ctx.userEmail} disabled className="opacity-60 cursor-not-allowed" />
               </div>
 
-              <SaveButton label="Update profile" loadingLabel="Updating profile..." variant="secondary" className="w-full sm:w-auto" />
-            </SettingsForm>
+              <Button type="submit" variant="secondary" className="w-full sm:w-auto">
+                Update profile
+              </Button>
+            </form>
           </section>
 
           {/* CHANGE PASSWORD */}

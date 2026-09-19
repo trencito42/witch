@@ -377,12 +377,6 @@ export async function processBrowserMonitor(monitor: Monitor, site: Site, trigge
     consecutiveSuccesses: successes,
     recoverAfterSuccesses: env.HTTP_RECOVERY_SUCCESSES,
   });
-  if (result.faviconUrl && result.faviconUrl !== site.faviconUrl) {
-    await db
-      .update(sites)
-      .set({ faviconUrl: result.faviconUrl, updatedAt: new Date() })
-      .where(eq(sites.id, site.id));
-  }
 }
 
 export async function processMonitor(monitorId: string, trigger = "schedule") {
